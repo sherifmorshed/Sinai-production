@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ══════════════════════════════════════════════════════════════
+    //  RAS GARA — security rules for the NEW, SEPARATE project
+    // ══════════════════════════════════════════════════════════════
+    //
+    //  Publish this in the Ras Gara project ONLY. Do not paste it into the
+    //  Land Wells project; they are different databases with different rules.
+    //
+    //  Firebase Console → Firestore Database → Rules → paste → Publish.
+    //
+    //  This is the real access control. The email lists inside index.html only
+    //  decide what the screen offers — anyone can open a browser console. If
+    //  these rules are not published, Firestore's default (open for 30 days,
+    //  then closed) applies, which is either wide open or completely broken.
+    //
+    //  Keep the addresses below in step with ADMIN_EMAILS / PLANT_EMAILS /
+    //  PETRECO_EMAILS in index.html. They are two halves of the same decision,
+    //  and drift shows up as "the button is there but saving fails".
+
+    // PETROBEL. Reads and writes both sides, and is the only role offered the
+    // chart, the printed report and the e-mailed PDF.
+    function isAdmin() {
+      return request.auth != null
+          && request.auth.token.email == 'sherifmorshed@gmail.com';
+    }
+
+    // The Ras Gara plant operators.
+    function isPlant() {
+      return request.auth != null
+          && request.auth.token.email in ['rasgara@petrobel.org'];
+    }
+
+    // The PETRECO operators.
+    function isPetreco() {
+      return request.auth != null
+          && request.auth.token.email in ['petreco@petrobel.org'];
+    }
+
+    // Anyone allowed to record readings at all.
+    function isOperator() {
+      return isAdmin() || isPlant() || isPetreco();
+    }
+
+    // ── Daily readings: one document per shift day ────────────────
+    //
+    //  A NOTE ON WHAT THIS DOES AND DOES NOT DO
+    //
+    //  Both sides' hourly figures live in one document, so these rules cannot
+    //  stop one operator group from WRITING the other's field: a rule allows
+    //  or denies the whole document, and each group must be able to write its
+    //  own half of it.
+    //
+    //  What DOES protect each side is in the app, not here. A save sends only
+    //  the fields that role owns, merged into the document, so the two groups
+    //  cannot overwrite each other by accident even when one has been offline
+    //  for hours. That is the failure that actually happens in practice.
+    //
+    //  A DELIBERATE write from a browser console is still possible. Making
+    //  that impossible needs the day split into two sub-documents
+    //  (rasGara/{date}/sides/petreco and .../rasgara) so the rules can address
+    //  each side separately — a schema change plus a migration. It has not
+    //  been done because the two parties are cooperating on a shared
+    //  measurement, not adversaries. If that ever stops being true, this is
+    //  the thing to change.
+    match /rasGara/{date} {
+      allow read:  if isOperator();
+      allow write: if isOperator();
+    }
+
+    // ── Version stamp every device watches ────────────────────────
+    // Changing this doc is what tells the other phones to re-download. It is
+    // rewritten on every save and by the JSON import.
+    match /rasGaraMeta/{docId} {
+      allow read:  if isOperator();
+      allow write: if isOperator();
+    }
+
+    // ── Deny everything else ──────────────────────────────────────
+    // Including any collection a future feature adds: it will fail loudly here
+    // rather than quietly inheriting someone else's permissions.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

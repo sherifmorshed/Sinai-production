@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ══════════════════════════════════════════════════════════════════════════
+   RAS GARA — Production Readings                          PETROBEL
+  ══════════════════════════════════════════════════════════════════════════
+
+   One self-contained file. Edit it directly — there is no build step.
+
+   WHAT IS WHERE                                                    (approx.)
+   ─────────────────────────────────────────────────────────────────────────
+     CSS
+       Design tokens — every colour lives here, light + dark ........ ~line 25
+       Header, login, toast, footer ................................ ~line 55
+       The readings page: table, inputs, cards, chart .............. ~line 175
+     MARKUP
+       Icon sprite — all 11 icons, drawn inline .................... ~line 250
+       Login screen ............................................... ~line 265
+       Header bar ................................................. ~line 285
+       The readings page + the admin backup box ................... ~line 300
+     SCRIPT 1 — the shell
+       ►► CONFIGURATION — Firebase config + who is admin/plant ..... ~line 370
+       Boot, helpers, chart colours ............................... ~line 400
+       Sign in / sign out, roles .................................. ~line 505
+     SCRIPT 2 — the app
+       Readings, totals, chart, printed report, PDF, cloud sync .... ~line 620
+     SCRIPT 3 — the extras
+       Backup / import JSON ...................................... ~line 1345
+       Day / night theme ......................................... ~line 1465
+       Service worker registration ............................... ~line 1490
+
+   TO CHANGE WHO CAN SIGN IN
+     Edit ADMIN_EMAILS / PLANT_EMAILS in the CONFIGURATION block AND the
+     matching functions in firestore.rules. They are two halves of one
+     decision — change one without the other and saving fails silently.
+
+   BEFORE YOU RELEASE
+     Bump CACHE_NAME in sw.js. Otherwise nobody sees your change.
+
+   See DEVELOPER_REFERENCE.md for the things that will bite you.
+  ══════════════════════════════════════════════════════════════════════════
+-->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d68">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ras Gara">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="PETROBEL Ras Gara — hourly production readings and daily comparison">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Ras Gara — PETROBEL</title>
+<style>
+/* Fonts: local-first, no download. Same decision as the Wells app — bundling a
+   web face would cost ~300 KB and break the offline guarantee, which matters
+   more at a plant than the typeface does. */
+@font-face { font-family:'Inter'; src:local('Inter'),local('Inter Regular'),local('Inter-Regular'); font-weight:300 700; font-display:swap; }
+@font-face { font-family:'JetBrains Mono'; src:local('JetBrains Mono'),local('JetBrainsMono'),local('JetBrains Mono Regular'); font-weight:400 700; font-display:swap; }
+
+/* ── Tokens ─────────────────────────────────────────────────────────────
+   Identical to Land Wells v103 so the two apps still read as one family.
+   Light is the default; dark is a deliberate second palette, not a flip. */
+:root{
+  --bg:#0a1420; --surface:#0f1e2e; --card:#14273a; --border:#22405c;
+  --accent:#59a5e8; --accent2:#e0b95f; --green:#34c98a; --yellow:#f0c05a;
+  --red:#ef7a86; --text:#e6eef7; --muted:#8aa4bd; --gold:#e0b95f;
+  --on-accent:#06131f; --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --ring:rgba(89,165,232,.30); --shadow:0 4px 16px rgba(0,0,0,.42);
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-num:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+body.light-mode{
+  --bg:#eef3f8; --surface:#ffffff; --card:#f7fafd; --border:#dbe4ee;
+  --accent:#0b3d68; --accent2:#a9822f; --green:#1d6b3f; --yellow:#8a6212;
+  --red:#b03a48; --text:#16232f; --muted:#5d7286; --gold:#c8a34a;
+  --on-accent:#ffffff; --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --ring:rgba(11,61,104,.18); --shadow:0 2px 10px rgba(15,40,70,.07);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{height:100%;}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--font-ui);
+  min-height:100%; display:flex; flex-direction:column; overflow-x:hidden;
+}
+
+/* ── Icons ──────────────────────────────────────────────────────────── */
+.ico{ width:1.15em; height:1.15em; flex:0 0 auto; vertical-align:-.19em; fill:none; stroke:currentColor; }
+.ico-h{ width:1.05em; height:1.05em; vertical-align:-.13em; color:var(--accent); }
+.ico-lg{ width:20px; height:20px; vertical-align:-.28em; }
+.ico-xl{ width:52px; height:52px; vertical-align:middle; opacity:.5; color:var(--accent); }
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.app-header{
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  background:linear-gradient(180deg,var(--surface),var(--card));
+  border-bottom:1px solid var(--border); box-shadow:var(--shadow);
+  position:sticky; top:0; z-index:40;
+}
+body.light-mode .app-header{ border-bottom:3px solid var(--gold); }
+/* flex:0 0 auto on the mark and 1 1 auto on the email: the address is the
+   only thing here that can afford to be truncated, so it is the only thing
+   allowed to shrink. Without this the mark was squeezed below its content
+   width and the nowrap wordmark spilled across the address. */
+.ub-mark{ display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+.ub-mark .ico{ width:22px; height:22px; color:var(--accent); }
+.ub-title{ font-size:13px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; }
+.ub-email{ font-size:11px; color:var(--muted); font-family:var(--font-num);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  flex:1 1 auto; min-width:0; text-align:right; }
+/* Below ~430px there is not room for both the wordmark and the address. The
+   page heading underneath already says "Ras Gara", so the wordmark goes. */
+@media (max-width:430px){ .ub-title{ display:none; } }
+.ub-role{ font-size:10px; font-weight:800; letter-spacing:1px; color:var(--accent);
+  font-family:var(--font-num); white-space:nowrap; }
+.theme-toggle{ display:inline-flex; align-items:center; justify-content:center;
+  background:transparent; border:1px solid var(--border); border-radius:9px;
+  width:34px; height:32px; color:var(--accent2); cursor:pointer; }
+.ub-logout{ background:var(--surface); border:1.5px solid var(--border); border-radius:9px;
+  color:var(--text); font-size:10px; font-weight:700; letter-spacing:1px;
+  padding:8px 10px; cursor:pointer; font-family:var(--font-num); }
+
+/* ── Page header ────────────────────────────────────────────────────── */
+.page-hdr{ padding:14px 14px 12px; border-bottom:1px solid var(--border); background:var(--surface); }
+.page-hdr h2{ font-size:19px; font-weight:800; letter-spacing:-.02em; color:var(--accent);
+  display:flex; align-items:center; gap:9px; }
+.page-hdr p{ font-size:12.5px; color:var(--muted); margin-top:4px; }
+
+/* ── Controls: everything tappable LOOKS tappable ─────────────────────
+   This is the whole reason the Wells redesign happened; the rule is carried
+   over verbatim so the split cannot reintroduce the invisible-field bug. */
+input[type=text],input[type=number],input[type=date],input[type=email],
+input[type=password],input[type=file],select,textarea{
+  background:var(--surface); border:1.5px solid var(--border); border-radius:10px;
+  color:var(--text); padding:10px 11px; font-family:var(--font-num); font-size:13px;
+  transition:border-color .15s, box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{
+  outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring);
+}
+input::placeholder{ color:var(--muted); opacity:.75; }
+button{ font-family:inherit; cursor:pointer; }
+button:active{ transform:translateY(1px); }
+
+/* ── Login ──────────────────────────────────────────────────────────── */
+#login-page{
+  position:fixed; inset:0; z-index:200; background:var(--bg);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+#login-page.hidden{ display:none; }
+.login-card{
+  width:100%; max-width:380px; background:var(--card); border:1px solid var(--border);
+  border-radius:16px; padding:26px 22px; box-shadow:var(--shadow);
+}
+body.light-mode .login-card{ border-top:4px solid var(--gold); }
+.login-logo{ text-align:center; margin-bottom:18px; }
+.login-logo img{ width:72px; height:72px; border-radius:16px; object-fit:cover; }
+.login-logo h1{ font-size:19px; font-weight:800; letter-spacing:1px; margin-top:10px; }
+.login-logo p{ font-size:12px; color:var(--muted); font-family:var(--font-num); margin-top:3px; }
+.login-field{ margin-bottom:13px; }
+.login-field label{ display:block; font-size:10px; letter-spacing:1px; text-transform:uppercase;
+  color:var(--muted); font-family:var(--font-num); margin-bottom:6px; }
+.login-field input{ width:100%; }
+.login-btn{
+  width:100%; background:var(--accent); color:var(--on-accent); border:1px solid var(--accent);
+  border-radius:11px; padding:13px; font-size:15px; font-weight:700; letter-spacing:.3px;
+  box-shadow:0 3px 10px var(--ring); margin-top:6px;
+}
+body.light-mode .login-btn{ color:#fff; }
+.login-btn:disabled{ opacity:.55; cursor:not-allowed; }
+.login-error{ color:var(--red); font-size:12px; margin-top:10px; min-height:16px; text-align:center; }
+
+/* ── Toast ──────────────────────────────────────────────────────────── */
+#toast{
+  position:fixed; left:50%; bottom:22px; transform:translate(-50%,80px);
+  background:var(--card); color:var(--text); border:1px solid var(--border);
+  border-left:3px solid var(--accent); border-radius:10px; padding:11px 15px;
+  font-size:13px; max-width:88vw; box-shadow:var(--shadow); z-index:300;
+  opacity:0; transition:transform .22s, opacity .22s; pointer-events:none;
+}
+#toast.show{ transform:translate(-50%,0); opacity:1; }
+#toast.warn{ border-left-color:var(--yellow); }
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+.app-footer{
+  margin-top:auto; text-align:center; padding:16px; font-size:12px;
+  color:var(--muted); font-family:var(--font-num);
+  border-top:1px solid var(--border); background:var(--surface);
+}
+.cloud-line{ font-size:11px; color:var(--muted); font-family:var(--font-num);
+  display:flex; align-items:center; justify-content:center; gap:5px; margin-bottom:5px; }
+
+/* ── Admin strip (import / export) ──────────────────────────────────── */
+.adm{ margin:24px 14px 0; padding:13px 14px; border:1px dashed var(--border);
+  border-radius:12px; background:var(--card); }
+.adm h3{ font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted);
+  font-family:var(--font-num); margin-bottom:9px; display:flex; align-items:center; gap:7px; }
+.adm h3 .ico{ color:var(--gold); }
+.adm-row{ display:flex; gap:9px; flex-wrap:wrap; align-items:center; }
+.adm-note{ font-size:11px; color:var(--muted); margin-top:8px; line-height:1.5; }
+#rgImportStatus{ font-size:11px; color:var(--muted); font-family:var(--font-num);
+  margin-top:9px; white-space:pre-wrap; }
+
+#swUpdateBanner{
+  display:none; position:fixed; left:0; right:0; bottom:0; z-index:250;
+  background:var(--accent); color:var(--on-accent); padding:12px 14px;
+  font-size:13px; text-align:center; cursor:pointer;
+}
+body.light-mode #swUpdateBanner{ color:#fff; }
+
+/* ── Ras Gara page ─────────────────────────────────────────────────── */
+
+/* ── Ras Gara tab ─────────────────────────────────────────────────────── */
+.rg-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+.rg-lbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:var(--font-num);}
+.rg-date{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);
+  padding:7px 9px;font-size:13px;font-family:var(--font-num);}
+.rg-btn{background:var(--surface);border:1.5px solid var(--border);border-radius:11px;color:var(--text);
+  padding:9px 13px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;
+  display:inline-flex;align-items:center;gap:6px;}
+.rg-btn:active{transform:translateY(1px);}
+.rg-btn-primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:700;
+  box-shadow:0 3px 10px var(--ring);}
+body.light-mode .rg-btn-primary{color:#fff !important;}
+.rg-saved{font-size:11px;color:var(--muted);margin-left:auto;font-family:var(--font-num);}
+.rg-hint{font-size:11px;color:var(--muted);margin:2px 0 10px;}
+.rg-sec-title{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);
+  font-family:var(--font-num);margin:22px 0 8px;}
+.rg-tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:13px;background:var(--surface);
+  box-shadow:var(--shadow);}
+table.rg-tbl{width:100%;border-collapse:collapse;font-family:var(--font-num);font-size:12px;min-width:520px;
+  font-variant-numeric:tabular-nums;}
+table.rg-tbl td{vertical-align:middle;}
+/* The plant view is three columns, not five; the 520px floor was sized for the
+   comparison and pushed its Cumulative column off a phone screen. */
+body.rg-own-side table.rg-tbl{min-width:0;}
+body.rg-own-side .rg-in{width:100%;max-width:110px;}
+table.rg-tbl th{position:sticky;top:0;background:var(--card);color:var(--muted);font-size:10px;
+  letter-spacing:.5px;text-transform:uppercase;padding:7px 6px;border-bottom:1px solid var(--border);text-align:center;font-weight:600;}
+table.rg-tbl th.rg-grp{color:var(--s1);border-bottom:2px solid var(--s1);}
+table.rg-tbl th.rg-grp2{color:var(--s2);border-bottom:2px solid var(--s2);}
+table.rg-tbl td{padding:3px 6px;border-bottom:1px solid rgba(148,163,184,.12);text-align:center;color:var(--text);}
+table.rg-tbl tbody tr:nth-child(odd){background:rgba(56,189,248,0.07);}
+.rg-time{color:var(--muted);white-space:nowrap;}
+/* A visible frame AT REST is the whole point of the v103 redesign. The
+   original was `border:1px solid transparent` revealed on :hover — and a phone
+   has no hover, so the field only appeared once you had already tapped it. */
+.rg-in{width:82px;background:var(--surface);border:2px solid var(--border);border-radius:10px;
+  color:var(--text);padding:9px 6px;font-size:13.5px;font-weight:700;
+  font-family:var(--font-num);text-align:center;
+  box-shadow:inset 0 1px 3px rgba(15,40,70,.07);}
+body:not(.light-mode) .rg-in{box-shadow:inset 0 2px 5px rgba(0,0,0,.35);}
+.rg-in:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring);}
+.rg-in:disabled{background:var(--card);color:var(--muted);border-style:dashed;opacity:1;cursor:not-allowed;}
+.rg-in.rg-dirty{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(200,163,74,.22);}
+/* NOTE: .rg-calc sits ON the <td>. Do not change its `display` — an
+   inline-block table cell leaves table layout and the value drifts out of its
+   row. It is told apart from an input by colour and ground, not by a box:
+   inputs are white with a 2px frame, calculated cells are muted on the card. */
+td.rg-calc{color:var(--muted);font-family:var(--font-num);font-variant-numeric:tabular-nums;
+  background:var(--card);font-size:12.5px;}
+.rg-tot{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px;}
+.rg-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 13px;}
+.rg-card .k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:var(--font-num);}
+.rg-card .v{font-size:20px;font-weight:700;margin-top:3px;font-family:var(--font-num);}
+.rg-card .s{font-size:11px;color:var(--muted);margin-top:1px;font-family:var(--font-num);}
+.rg-card.petreco .v{color:var(--s1);}
+.rg-card.rasgara .v{color:var(--s2);}
+.rg-card.loss .v{color:var(--red, #f87171);}
+.rg-card.gain .v{color:var(--green, #4ade80);}
+.rg-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.rg-actions .rg-btn{flex:1;min-width:150px;padding:11px 12px;font-size:13px;}
+.rg-empty{color:var(--muted);font-size:13px;text-align:center;padding:26px 10px;}
+.rg-legend{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px;font-size:11px;
+  color:var(--muted);font-family:var(--font-num);}
+.rg-legend .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+
+</style>
+</head>
+<body>
+<!-- ══ Icon sprite ══════════════════════════════════════════════════════
+     Same drawing set as Land Wells v103, trimmed to what this app uses.
+     Stroke-only on a 24 grid so they inherit currentColor and follow the
+     theme. NOTE: a <use> reference does not resolve inside a detached
+     document, so the printed report and the e-mailed PDF carry their own
+     inline markup — do not "tidy" them to use the sprite. ══════════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-plant" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="4.5" y="12" width="6" height="8" rx="1"/><rect x="12.5" y="14.5" width="7" height="5.5" rx="1"/><path d="M7.5 12V8"/><path d="M7.5 8c0-1.6 1.5-2 1.5-3.4 0 0 2 1.4 2 3.4a3.5 3.5 0 0 1-3.5 3.5"/><path d="M14.5 14.5v-2.2h3.2v2.2"/></g></symbol>
+<symbol id="i-decline" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><path d="M7 8c3 0 4 3.4 5 6s2.2 3.4 5 3.4"/><path d="M15.6 6.5h3.9v3.9"/><path d="M19.5 6.5 14 12"/></g></symbol>
+<symbol id="i-trend" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><path d="m7 15 3.5-4 3 2.6L19 7.5"/><path d="M15.4 7.5H19v3.6"/></g></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8V3.5h10V8"/><rect x="3.5" y="8" width="17" height="8" rx="1.8"/><rect x="7" y="14" width="10" height="6.5" rx="1"/><path d="M17 11h.01"/></g></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.8 6.5 8.2 6 8.2-6"/></g></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 17.2 10a3.8 3.8 0 0 1 .3 7.6z"/></g></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/></g></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19.5H3z"/><path d="M12 9.5v4.2"/><path d="M12 16.8h.01"/></g></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6V5"/><path d="M12 19v2.4"/><path d="M2.6 12H5"/><path d="M19 12h2.4"/><path d="m5.6 5.6 1.7 1.7"/><path d="m16.7 16.7 1.7 1.7"/><path d="m18.4 5.6-1.7 1.7"/><path d="m7.3 16.7-1.7 1.7"/></g></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4 8.5 8.5 0 1 0 20 14.2z"/></g></symbol>
+<symbol id="i-db" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7.5" ry="2.8"/><path d="M4.5 6v6c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8V6"/><path d="M4.5 12v6c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-6"/></g></symbol>
+</defs></svg>
+
+<!-- ══ LOGIN ═════════════════════════════════════════════════════════ -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="icon.png" alt="PETROBEL">
+      <h1>RAS GARA</h1>
+      <p>Production Readings</p>
+    </div>
+    <div class="login-field">
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" placeholder="your@petrobel.org" autocomplete="email" inputmode="email">
+    </div>
+    <div class="login-field">
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ══ HEADER ════════════════════════════════════════════════════════ -->
+<div class="app-header" id="appHeader" style="display:none;">
+  <span class="ub-mark">
+    <svg class="ico" aria-hidden="true"><use href="#i-plant"/></svg>
+    <span class="ub-title">Ras&nbsp;Gara</span>
+  </span>
+  <span class="ub-email" id="ubEmail"></span>
+  <span class="ub-role" id="ubRole"></span>
+  <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle day / night mode" aria-label="Toggle theme"><svg class="ico ico-lg" aria-hidden="true"><use href="#i-moon"/></svg></button>
+  <button class="ub-logout" onclick="handleLogout()">LOGOUT</button>
+</div>
+
+<!-- ══ PAGE ══════════════════════════════════════════════════════════ -->
+<div id="app-body" style="display:none;">
+<div id="page-rasgara">
+  <div class="page-hdr">
+    <h2 id="rgHeading"><svg class="ico ico-h" aria-hidden="true"><use href="#i-plant"/></svg> Ras Gara — Production Comparison</h2>
+    <p id="rgSubtitle">Hourly PETRECO vs Ras Gara readings, losses &amp; daily trend</p>
+  </div>
+  <div style="padding:12px 14px 30px;">
+
+    <!-- day picker + actions -->
+    <div class="rg-bar">
+      <label class="rg-lbl" for="rgDate">Shift day</label>
+      <input type="date" id="rgDate" class="rg-date">
+      <button class="rg-btn" id="rgTodayBtn">Today</button>
+      <span class="rg-saved" id="rgSaved"></span>
+    </div>
+    <div class="rg-hint" id="rgShiftHint"></div>
+
+    <!-- entry / comparison table -->
+    <div id="rgTableArea"></div>
+
+    <!-- totals -->
+    <div id="rgTotals"></div>
+
+    <!-- chart -->
+    <div id="rgChart"></div>
+
+    <!-- actions -->
+    <div class="rg-actions">
+      <button class="rg-btn rg-btn-primary" id="rgPrintBtn"><svg class="ico" aria-hidden="true"><use href="#i-print"/></svg> Print report</button>
+      <button class="rg-btn rg-btn-primary" id="rgMailBtn"><svg class="ico" aria-hidden="true"><use href="#i-mail"/></svg> Send by e-mail</button>
+    </div>
+
+    <!-- daily trend across days -->
+    <div class="rg-sec-title" id="rgHistTitle"><svg class="ico" aria-hidden="true"><use href="#i-trend"/></svg> <span>Daily comparison history</span></div>
+    <div id="rgHistory"></div>
+  </div>
+</div>
+
+  <!-- Admin-only: migration in, backup out. Hidden for the plant account. -->
+  <div class="adm" id="rgAdminBox" style="display:none;">
+    <h3><svg class="ico" aria-hidden="true"><use href="#i-db"/></svg> Backup &amp; migration</h3>
+    <div class="adm-row">
+      <button class="rg-btn" id="rgExportBtn">Export all days (JSON)</button>
+      <button class="rg-btn" id="rgImportBtn">Import JSON…</button>
+      <input type="file" id="rgImportFile" accept="application/json,.json" style="display:none;">
+    </div>
+    <p class="adm-note">Import merges by date and never deletes: a day already in the
+      cloud is only overwritten when the file actually carries readings for it. Use this
+      once to bring the history across from the old Land&nbsp;Wells project, and after
+      that as a plain backup.</p>
+    <div id="rgImportStatus"></div>
+  </div>
+</div>
+
+<div class="app-footer" id="appFooter" style="display:none;">
+  <div class="cloud-line" id="cloud-sync-status"><svg class="ico" aria-hidden="true"><use href="#i-cloud"/></svg> Connecting…</div>
+  PETROBEL · Ras Gara
+</div>
+
+<div id="toast"></div>
+<div id="swUpdateBanner"><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg> Update available — <strong>tap to refresh</strong></div>
+
+<script src="./firebase-app-compat.js"></script>
+<script src="./firebase-firestore-compat.js"></script>
+<script src="./firebase-auth-compat.js"></script>
+<script src="./html2canvas.min.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+//  CONFIGURATION — the only block you should need to edit
+// ══════════════════════════════════════════════════════════════════════
+//
+// This app runs against its OWN Firebase project, separate from Land Wells.
+// Paste that project's web config here: Firebase Console → Project settings →
+// General → Your apps → Web app → Config.
+//
+// Nothing in this file is a secret. A Firebase web config is public by design —
+// it identifies the project, it does not authorise anything. What actually
+// protects the data is the security rules in firestore.rules plus the accounts
+// you create. Do not skip publishing those rules.
+//
+// The console shows this project as "Sinai-Production"; its ID is
+// `production-hourly`. That is not a mismatch — a Firebase project ID is fixed
+// at creation and only the display name can be changed afterwards. Everything
+// in code, including the rules, addresses the ID.
+const firebaseConfig = {
+  apiKey:            "AIzaSyAvBP0olyGyeKq4IAxyLOnFZbvAu4IAZig",
+  authDomain:        "production-hourly.firebaseapp.com",
+  projectId:         "production-hourly",
+  storageBucket:     "production-hourly.firebasestorage.app",
+  messagingSenderId: "994505777551",
+  appId:             "1:994505777551:web:940a4405a580fde1966bfa"
+};
+
+// Who is who. Lower-case; compared case-insensitively.
+//
+// ADMIN   — PETROBEL. Sees and edits both sides, the chart, print and e-mail.
+// PLANT   — Ras Gara operators. Their own two columns and their own total only.
+// PETRECO — PETRECO operators. Their own M3/hr column and their own total only.
+//           Their Cumulative stays calculated — it is a running total, never typed.
+//
+// Anyone who signs in successfully but is in NEITHER list is treated as a
+// read-only viewer: they can look, they cannot type. That is deliberate — an
+// account added in the Firebase console by mistake should not gain write access
+// just by existing. The security rules enforce the same split server-side; this
+// list only decides what the screen offers.
+const ADMIN_EMAILS   = ['sherifmorshed@gmail.com'];
+const PLANT_EMAILS   = ['rasgara@petrobel.org'];
+const PETRECO_EMAILS = ['petreco@petrobel.org'];
+
+// ══════════════════════════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════════════════════════
+let FIREBASE_OK = false;
+let db = null, auth = null;
+let currentUser = null;
+let isAdmin = false;
+let isRasGara = false;   // "the plant account" — name kept to match the module
+let isPetreco = false;   // the PETRECO operators
+
+try {
+  if (typeof firebase === 'undefined') throw new Error('Firebase SDK did not load');
+  if (String(firebaseConfig.apiKey).indexOf('PASTE_') === 0) {
+    throw new Error('Firebase config has not been filled in yet — see SETUP.md');
+  }
+  firebase.initializeApp(firebaseConfig);
+  db   = firebase.firestore();
+  auth = firebase.auth();
+  db.enablePersistence({ synchronizeTabs:true }).catch(function(){ /* multi-tab or unsupported: fine */ });
+  FIREBASE_OK = true;
+} catch (e) {
+  console.error('[boot]', e.message);
+  window.__BOOT_ERROR__ = e.message;
+}
+
+// ── Small helpers the Ras Gara module expects from its host ────────────
+function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s){ return escHtml(s).replace(/'/g,'&#39;'); }
+
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }
+  catch(e){ showToast('Storage unavailable — this entry may not survive a reload', true); return false; } }
+function lsRemove(k){ try{ localStorage.removeItem(k); return true; }catch(e){ return false; } }
+
+function getSyncedVersion(k){ const v=lsGet(k); const n=v?Number(v):0; return isNaN(n)?0:n; }
+function setSyncedVersion(k,ts){ if(ts) lsSet(k,String(ts)); }
+// True when this device already holds the exact cloud version, so the download
+// can be skipped. `hasLocalData` guards the case where the stamp survived but
+// the cached payload did not (partially cleared storage).
+function isCacheCurrent(k, cloudTs, hasLocalData){
+  return !!cloudTs && hasLocalData && getSyncedVersion(k) === cloudTs;
+}
+// This app stores one small document per day, so it will not approach the
+// localStorage budget for years. The check is kept anyway: it is three lines,
+// and the failure it catches (a silent write failure that looks like a
+// successful save until the page reloads) is a nasty one to debug in the field.
+const LS_BUDGET_BYTES = 5 * 1024 * 1024;
+let _storageWarned = false;
+function checkStorageHeadroom(){
+  if(_storageWarned) return;
+  let used = 0;
+  try { for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
+        used += k.length + (localStorage.getItem(k)||'').length; } }
+  catch(e){ return; }
+  if(used / LS_BUDGET_BYTES >= 0.8){
+    _storageWarned = true;
+    showToast('Offline storage ' + Math.round(used/LS_BUDGET_BYTES*100) + '% full', true);
+  }
+}
+
+// Local-calendar ISO date. Uses local getters on purpose: this is only ever
+// called on a `new Date()` representing "now", where local IS the intended
+// day. Never feed it a UTC-midnight value — that is the bug that cost the
+// Wells app three separate releases to track down.
+function _isoDate(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' +
+         String(d.getDate()).padStart(2,'0');
+}
+
+let _toastTimer = null;
+function showToast(msg, warn){
+  const el = document.getElementById('toast');
+  if(!el) return;
+  el.textContent = String(msg);
+  el.className = 'show' + (warn ? ' warn' : '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ el.className = ''; }, 3200);
+}
+
+function updateCloudStatus(status, text){
+  const el = document.getElementById('cloud-sync-status');
+  if(!el) return;
+  const colors = { synced:'var(--green)', syncing:'var(--yellow)', offline:'var(--red)', error:'var(--red)' };
+  const icons  = { synced:'cloud', syncing:'refresh', offline:'cloud', error:'warn' };
+  el.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-' + (icons[status]||'cloud') + '"/></svg> ' +
+                 escHtml(text);
+  el.style.color = colors[status] || 'var(--muted)';
+}
+
+// ── Chart series colours ───────────────────────────────────────────────
+// Resolved from the live tokens, never hard-coded, so the chart follows the
+// theme. PRINT_SERIES is the light-mode set and is what the printed report and
+// the PDF must use: those render in a DETACHED document where var(--…) does not
+// resolve, and an unresolved colour paints black.
+const PRINT_SERIES     = { s1:'#2a78d6', s2:'#eb6834', s3:'#1baf7a' };
+const _SERIES_FALLBACK = { s1:'#3987e5', s2:'#d95926', s3:'#199e70' };
+function seriesColor(slot, forPrint){
+  if(forPrint) return PRINT_SERIES[slot] || PRINT_SERIES.s1;
+  try {
+    const v = getComputedStyle(document.body).getPropertyValue('--' + slot).trim();
+    if(v) return v;
+  } catch(e){}
+  return _SERIES_FALLBACK[slot] || _SERIES_FALLBACK.s1;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════════════════════════
+function _roleOf(email){
+  const e = String(email||'').toLowerCase().trim();
+  return { admin:   ADMIN_EMAILS.indexOf(e)   !== -1,
+           plant:   PLANT_EMAILS.indexOf(e)   !== -1,
+           petreco: PETRECO_EMAILS.indexOf(e) !== -1 };
+}
+
+function showApp(user){
+  const r = _roleOf(user.email);
+  currentUser = { email:user.email, name:String(user.email).split('@')[0], uid:user.uid };
+  isAdmin    = r.admin;
+  isRasGara  = r.plant;
+  isPetreco  = r.petreco;
+
+  document.getElementById('login-page').classList.add('hidden');
+  document.getElementById('appHeader').style.display = 'flex';
+  document.getElementById('app-body').style.display  = '';
+  document.getElementById('appFooter').style.display = '';
+  document.getElementById('ubEmail').textContent = user.email;
+  document.getElementById('ubRole').textContent  =
+    isAdmin ? 'ADMIN' : isRasGara ? 'RAS GARA' : isPetreco ? 'PETRECO' : 'VIEWER';
+  // Backup / migration is an admin tool; the plant never needs it.
+  document.getElementById('rgAdminBox').style.display = isAdmin ? '' : 'none';
+
+  console.log('[auth] ' + user.email + ' — ' +
+              (isAdmin?'ADMIN':isRasGara?'RAS GARA':isPetreco?'PETRECO':'VIEWER'));
+  if(typeof window.refreshRasGaraPage === 'function') window.refreshRasGaraPage();
+  if(typeof window.startRasGaraListener === 'function') window.startRasGaraListener();
+}
+
+function showLogin(){
+  currentUser = null; isAdmin = false; isRasGara = false; isPetreco = false;
+  if(typeof window.stopRasGaraListener === 'function') window.stopRasGaraListener();
+  document.getElementById('login-page').classList.remove('hidden');
+  document.getElementById('appHeader').style.display = 'none';
+  document.getElementById('app-body').style.display  = 'none';
+  document.getElementById('appFooter').style.display = 'none';
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+  if(!FIREBASE_OK){
+    if(btn) btn.disabled = true;
+    if(err) err.textContent = window.__BOOT_ERROR__ || 'Cannot reach the sign-in service.';
+  }
+}
+
+function handleLogin(){
+  const emailEl = document.getElementById('loginEmail');
+  const passEl  = document.getElementById('loginPassword');
+  const errEl   = document.getElementById('loginError');
+  const btn     = document.getElementById('loginBtn');
+  const email = (emailEl.value||'').trim();
+  const pass  = passEl.value||'';
+  errEl.textContent = '';
+  if(!email || !pass){ errEl.textContent = 'Enter your email and password.'; return; }
+  if(!FIREBASE_OK){ errEl.textContent = window.__BOOT_ERROR__ || 'Sign-in unavailable.'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+    .then(function(){ return auth.signInWithEmailAndPassword(email, pass); })
+    .then(function(){ passEl.value = ''; })
+    .catch(function(e){
+      // Firebase's own strings leak whether an address exists; map them.
+      const map = {
+        'auth/invalid-email'      : 'That does not look like an email address.',
+        'auth/user-disabled'      : 'This account has been disabled.',
+        'auth/network-request-failed': 'No connection — check the network and try again.',
+        'auth/too-many-requests'  : 'Too many attempts. Wait a minute and try again.'
+      };
+      errEl.textContent = map[e.code] || 'Wrong email or password.';
+      console.warn('[auth]', e.code);
+    })
+    .finally(function(){ btn.disabled = false; btn.textContent = 'Sign In'; });
+}
+
+function handleLogout(){
+  if(!FIREBASE_OK){ showLogin(); return; }
+  auth.signOut().catch(function(e){ console.warn('[auth] signOut', e); });
+}
+
+// ── Boot gate ──────────────────────────────────────────────────────────
+// onAuthStateChanged can fire before the rest of the document has parsed.
+// If it does, showApp() runs against elements that do not exist yet and the
+// app dies silently on a blank screen. Hold the first auth event until the
+// DOM is ready. (This exact race cost the Wells app a release; not repeating it.)
+let _appReady = (document.readyState === 'interactive' || document.readyState === 'complete');
+let _pendingUser, _hasPending = false;
+
+function _apply(user){ if(user) showApp(user); else showLogin(); }
+
+function _onAuthState(user){
+  if(_appReady) _apply(user);
+  else { _pendingUser = user; _hasPending = true; }
+}
+
+if(!_appReady){
+  document.addEventListener('DOMContentLoaded', function(){
+    _appReady = true;
+    if(_hasPending){ _hasPending = false; const u = _pendingUser; _pendingUser = undefined; _apply(u); }
+  });
+}
+
+if(FIREBASE_OK) auth.onAuthStateChanged(_onAuthState);
+else document.addEventListener('DOMContentLoaded', showLogin);
+
+document.addEventListener('DOMContentLoaded', function(){
+  ['loginEmail','loginPassword'].forEach(function(id){
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('keydown', function(e){ if(e.key === 'Enter') handleLogin(); });
+  });
+});
+
+</script>
+
+<!-- ══ RAS GARA — the application itself ══════════════════════════ -->
+<script>
+// Lifted from Land Wells v103 and left deliberately close to the original so
+// fixes can still be diffed against it. Host contract (provided by _shell_boot.js):
+//   db, firebase, FIREBASE_OK, currentUser, isAdmin, isRasGara,
+//   escHtml, escAttr, showToast, updateCloudStatus, seriesColor, _isoDate,
+//   lsGet/lsSet, getSyncedVersion/setSyncedVersion/isCacheCurrent,
+//   checkStorageHeadroom, html2canvas
+
+(function(){
+  // Ras Gara is a plant ~100 km from PETRECO. Both sides meter the same
+  // production independently every hour; the difference is the transport loss.
+  //
+  // Data entry, per the two parties who actually take the readings:
+  //   PETRECO m3/hr  → typed by PETROBEL; the cumulative column is DERIVED
+  //                    from it (running total), never typed.
+  //   Ras Gara m3/hr AND cumulative → both typed by the Ras Gara operator,
+  //                    because their meter reports both independently.
+  //
+  // A "day" is the operating shift: 24 rows from 06:00 through 05:00 the
+  // following morning, matching the most recent sheets in Ras Gara Test 2026.
+  const RG_COL   = 'rasGara';
+  const RG_META  = { col:'rasGaraMeta', doc:'info' };
+  const RG_LS    = 'rasgara_days_v1';
+  const RG_VERK  = 'rasgara_days_v1__syncver';
+  const RG_START_HOUR = 6;
+  const RG_HOURS = 24;
+  const M3_TO_BBL = 6.3;           // the factor used in the source workbook
+
+  let RG_DAYS = (function(){ try { return JSON.parse(lsGet(RG_LS) || '{}') || {}; } catch(e){ return {}; } })();
+  let _rgDate = null;              // yyyy-mm-dd of the shift currently open
+  let _rgMetaUnsub = null, _rgLastTs = 0, _rgFirstSnap = true, _rgSkipNext = false;
+  let _rgSaveTimer = null;
+
+  // ── helpers ─────────────────────────────────────────────────────────────
+  function rgHourLabel(i){
+    const h = (RG_START_HOUR + i) % 24;
+    return String(h).padStart(2,'0') + ':00';
+  }
+  // Rows from 06:00 onward belong to the shift date; rows past midnight belong
+  // to the next calendar day. Shown so nobody has to work it out.
+  function rgRowDate(dateStr, i){
+    const rolls = (RG_START_HOUR + i) >= 24;
+    if(!rolls) return dateStr;
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    return _isoDate(d);
+  }
+  function rgNum(v){
+    if(v === '' || v == null) return null;
+    const n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  }
+  function rgFmt(v, dp){
+    if(v == null || isNaN(v)) return '—';
+    const p = Math.pow(10, dp == null ? 1 : dp);
+    return (Math.round(v * p) / p).toLocaleString('en-US');
+  }
+  function rgToday(){
+    // Before the 06:00 shift start the "current" shift is still yesterday's.
+    const now = new Date();
+    if(now.getHours() < RG_START_HOUR) now.setDate(now.getDate() - 1);
+    return _isoDate(now);
+  }
+  function rgBlankDay(dateStr){
+    const rows = [];
+    for(let i = 0; i < RG_HOURS; i++) rows.push({ p:null, r:null, rc:null });
+    return { date:dateStr, startHour:RG_START_HOUR, rows:rows, updatedBy:'', updatedAt:0 };
+  }
+  function rgGetDay(dateStr){
+    const d = RG_DAYS[dateStr];
+    if(!d) return rgBlankDay(dateStr);
+    // tolerate short/legacy rows
+    const rows = [];
+    for(let i = 0; i < RG_HOURS; i++){
+      const s = (d.rows && d.rows[i]) || {};
+      rows.push({ p:rgNum(s.p), r:rgNum(s.r), rc:rgNum(s.rc) });
+    }
+    return { date:dateStr, startHour:d.startHour || RG_START_HOUR, rows:rows,
+             updatedBy:d.updatedBy || '', updatedAt:d.updatedAt || 0 };
+  }
+
+  // ── the calculations, exactly as the workbook does them ────────────────
+  function rgCalc(day){
+    let pTot = 0, rTot = 0, pAny = false, rAny = false;
+    const pCum = [];
+    let run = 0;
+    for(let i = 0; i < RG_HOURS; i++){
+      const row = day.rows[i];
+      if(row.p != null){ run += row.p; pTot += row.p; pAny = true; pCum.push(run); }
+      else pCum.push(null);
+      if(row.r != null){ rTot += row.r; rAny = true; }
+    }
+    const loss = (pAny || rAny) ? (pTot - rTot) : null;   // PETRECO − Ras Gara
+    return {
+      pCum: pCum,
+      pTotal: pAny ? pTot : null,
+      rTotal: rAny ? rTot : null,
+      pBbl: pAny ? pTot * M3_TO_BBL : null,
+      rBbl: rAny ? rTot * M3_TO_BBL : null,
+      loss: loss,
+      lossBbl: loss == null ? null : loss * M3_TO_BBL,
+      lossPct: (pAny && pTot > 0 && loss != null) ? (loss / pTot * 100) : null
+    };
+  }
+
+  // ── permissions ─────────────────────────────────────────────────────────
+  // Each side owns its own columns so neither plant can quietly restate the
+  // other's meter reading — the whole point of the comparison is that the two
+  // numbers are taken independently.
+  // These read the top-level `let` bindings from the shell script. They must be
+  // reached lexically with `typeof` guards, NOT as window.isAdmin — a top-level
+  // `let` does not become a property of window the way `var` does, so the
+  // window form silently reads undefined and every role collapses to viewer.
+  function _admin(){   return typeof isAdmin   !== 'undefined' && isAdmin; }
+  function _plant(){   return typeof isRasGara !== 'undefined' && isRasGara; }
+  function _petreco(){ return typeof isPetreco !== 'undefined' && isPetreco; }
+
+  // The admin can correct either side; each operator group only its own.
+  function rgCanEditPetreco(){ return _admin() || _petreco(); }
+  function rgCanEditRasGara(){ return _admin() || _plant(); }
+  function rgReadOnly(){ return !rgCanEditPetreco() && !rgCanEditRasGara(); }
+
+  // Which side of the comparison this user is here for:
+  //   'both'     admin, and read-only viewers (they may look at everything)
+  //   'petreco'  the PETRECO operators
+  //   'rasgara'  the Ras Gara plant operators
+  //
+  // An operator sees ONLY their own figures — no other column, no comparison
+  // total, no chart, no report buttons. Their job is to record their readings;
+  // the comparison is PETROBEL's to make.
+  //
+  // NOTE this is presentation only. The rules let both accounts read the whole
+  // rasGara/{date} document, so the other side's numbers are still fetchable
+  // from a browser console. If either side ever has to be genuinely
+  // confidential from the other, the day must be split into two documents —
+  // the reasoning is in firestore.rules next to the rule it would change.
+  function rgSide(){
+    if(_admin())   return 'both';
+    if(_petreco()) return 'petreco';
+    if(_plant())   return 'rasgara';
+    return 'both';
+  }
+  function rgOwnSideOnly(){ return rgSide() !== 'both'; }
+
+  // ── row shape on the wire ───────────────────────────────────────────────
+  // In memory `rows` is always a 24-element ARRAY — every render and
+  // calculation depends on that and none of it changed.
+  //
+  // In Firestore it is a MAP keyed "0".."23". That is not decoration: a
+  // Firestore array is one atomic value, so writing it always replaces the
+  // whole thing, including the other side's readings. A map can be written
+  // with merge:true and dotted paths, so each role writes only the fields it
+  // owns. See rgPushToCloud for why that matters.
+  //
+  // Documents written before this change still hold an array, so reads accept
+  // either shape. Writes always produce a map.
+  function rgRowsToArray(raw){
+    const out = [];
+    for(let i = 0; i < RG_HOURS; i++){
+      const r = (raw && (Array.isArray(raw) ? raw[i] : raw[String(i)])) || {};
+      out.push({ p: r.p == null ? null : r.p,
+                 r: r.r == null ? null : r.r,
+                 rc: r.rc == null ? null : r.rc });
+    }
+    return out;
+  }
+
+  // ── table ───────────────────────────────────────────────────────────────
+  function rgRenderTable(){
+    const area = document.getElementById('rgTableArea');
+    if(!area) return;
+    const day = rgGetDay(_rgDate);
+    const c   = rgCalc(day);
+    const edP = rgCanEditPetreco(), edR = rgCanEditRasGara();
+    const side = rgSide();
+    const showP = (side === 'both' || side === 'petreco');
+    const showR = (side === 'both' || side === 'rasgara');
+    const cell = function(kind, i, val, dp, editable){
+      return '<td>' + (editable
+        ? '<input class="rg-in" inputmode="decimal" data-rg="' + kind + '" data-i="' + i +
+          '" value="' + escAttr(val == null ? '' : val) + '">'
+        : '<span class="rg-calc">' + rgFmt(val, dp) + '</span>') + '</td>';
+    };
+    let body = '';
+    for(let i = 0; i < RG_HOURS; i++){
+      const row = day.rows[i];
+      let tds = '<td class="rg-time">' + escHtml(rgHourLabel(i)) + '</td>';
+      // PETRECO's cumulative is DERIVED — a running total, never typed — so it
+      // stays a calculated cell in every view, including PETRECO's own.
+      if(showP) tds += cell('p', i, row.p, 2, edP) +
+                       '<td class="rg-calc">' + rgFmt(c.pCum[i], 1) + '</td>';
+      // Ras Gara type both: their meter reports the cumulative independently.
+      if(showR) tds += cell('r',  i, row.r,  2, edR) +
+                       cell('rc', i, row.rc, 1, edR);
+      body += '<tr>' + tds + '</tr>';
+    }
+    const CUM_CALC = 'Cumulative<br><span style="font-weight:400;text-transform:none;">calculated</span>';
+    let head;
+    if(side === 'petreco'){
+      head = '<tr><th></th><th class="rg-grp" colspan="2">PETRECO</th></tr>' +
+             '<tr><th>Time</th><th>M3/hr</th><th>' + CUM_CALC + '</th></tr>';
+    } else if(side === 'rasgara'){
+      head = '<tr><th></th><th class="rg-grp2" colspan="2">RAS GARA</th></tr>' +
+             '<tr><th>Time</th><th>M3/hr</th><th>Cumulative</th></tr>';
+    } else {
+      head = '<tr><th></th><th class="rg-grp" colspan="2">PETRECO</th><th class="rg-grp2" colspan="2">RAS GARA</th></tr>' +
+             '<tr><th>Time</th><th>M3/hr</th><th>' + CUM_CALC + '</th>' +
+             '<th>M3/hr</th><th>Cumulative</th></tr>';
+    }
+    area.innerHTML =
+      '<div class="rg-tbl-wrap"><table class="rg-tbl">' +
+        '<thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+
+    const hint = document.getElementById('rgShiftHint');
+    if(hint){
+      const endDate = rgRowDate(_rgDate, RG_HOURS - 1);
+      let who = rgReadOnly() ? 'You have read-only access.'
+              : (edP && edR) ? 'You can enter both columns.'
+              : edP ? 'You can enter the PETRECO M3/hr column — the cumulative is calculated for you.'
+                    : 'You can enter the Ras Gara columns.';
+      hint.textContent = 'Shift ' + rgHourLabel(0) + ' ' + _rgDate + '  →  ' +
+                         rgHourLabel(RG_HOURS-1) + ' ' + endDate + '. ' + who;
+    }
+  }
+
+  // ── totals ──────────────────────────────────────────────────────────────
+  function rgRenderTotals(){
+    const el = document.getElementById('rgTotals');
+    if(!el) return;
+    const c = rgCalc(rgGetDay(_rgDate));
+    const side = rgSide();
+    if(side !== 'both'){
+      // An operator sees their own daily total and nothing else — no other
+      // side's figure and no comparison.
+      const own = side === 'petreco'
+        ? { cls:'petreco', label:'PETRECO total', tot:c.pTotal, bbl:c.pBbl }
+        : { cls:'rasgara', label:'Ras Gara total', tot:c.rTotal, bbl:c.rBbl };
+      el.innerHTML = (own.tot == null)
+        ? '<div class="rg-empty">No readings entered for this shift yet.</div>'
+        : '<div class="rg-tot"><div class="rg-card ' + own.cls + '">' +
+            '<div class="k">' + own.label + '</div><div class="v">' + rgFmt(own.tot,1) + '</div>' +
+            '<div class="s">m³/d · ' + rgFmt(own.bbl,0) + ' bbl/d</div></div></div>';
+      return;
+    }
+    if(c.pTotal == null && c.rTotal == null){
+      el.innerHTML = '<div class="rg-empty">No readings entered for this shift yet.</div>';
+      return;
+    }
+    const lossCls = (c.loss == null) ? '' : (c.loss > 0 ? 'loss' : 'gain');
+    const lossSign = (c.loss == null) ? '' : (c.loss > 0 ? '−' : '+');
+    el.innerHTML =
+      '<div class="rg-tot">' +
+        '<div class="rg-card petreco"><div class="k">PETRECO total</div><div class="v">' + rgFmt(c.pTotal,1) + '</div>' +
+          '<div class="s">m³/d · ' + rgFmt(c.pBbl,0) + ' bbl/d</div></div>' +
+        '<div class="rg-card rasgara"><div class="k">Ras Gara total</div><div class="v">' + rgFmt(c.rTotal,1) + '</div>' +
+          '<div class="s">m³/d · ' + rgFmt(c.rBbl,0) + ' bbl/d</div></div>' +
+        '<div class="rg-card ' + lossCls + '"><div class="k">Difference</div><div class="v">' + lossSign + rgFmt(Math.abs(c.loss),1) + '</div>' +
+          '<div class="s">m³/d · ' + rgFmt(Math.abs(c.lossBbl),0) + ' bbl/d' +
+          (c.lossPct == null ? '' : ' · ' + rgFmt(Math.abs(c.lossPct),1) + '%') +
+          (c.loss == null ? '' : (c.loss > 0 ? ' less at Ras Gara' : ' more at Ras Gara')) + '</div></div>' +
+      '</div>';
+  }
+
+  // ── chart: the workbook's line chart, Time vs Rate M3/hr ───────────────
+  function rgChartSVG(day, forPrint){
+    const c = rgCalc(day);
+    const W = 720, H = 260, P = 42;
+    const series = [
+      { key:'p', label:'PETRECO',  color:seriesColor('s1', forPrint) },
+      { key:'r', label:'Ras Gara', color:seriesColor('s2', forPrint) }
+    ];
+    let maxY = 0, any = false;
+    for(let i = 0; i < RG_HOURS; i++){
+      ['p','r'].forEach(function(k){
+        const v = day.rows[i][k];
+        if(v != null){ any = true; if(v > maxY) maxY = v; }
+      });
+    }
+    if(!any) return '<div class="rg-empty">Nothing to chart yet — enter some readings.</div>';
+    maxY = maxY <= 0 ? 1 : maxY * 1.15;
+    const sx = i => P + (W - 2*P) * (i / (RG_HOURS - 1));
+    const sy = v => H - P - (H - 2*P) * (v / maxY);
+    // Print keeps its own ink: the report is rendered into a detached window
+    // (and, for the e-mailed PDF, through html2canvas) where the theme tokens
+    // are not in scope, so a var() here would resolve to nothing and paint black.
+    const axisCol = forPrint ? '#c7d3e0' : 'var(--border)';
+    const txtCol  = forPrint ? '#41566b' : 'var(--muted)';
+    // Same reason as the colours: the report document has no --font-num to
+    // resolve, so an unresolved var() there quietly drops the tabular font.
+    const numFont = forPrint ? "'JetBrains Mono',ui-monospace,monospace" : 'var(--font-num)';
+
+    let grid = '';
+    for(let g = 0; g <= 4; g++){
+      const v = maxY * g / 4, y = sy(v);
+      grid += '<line x1="' + P + '" y1="' + y.toFixed(1) + '" x2="' + (W-P) + '" y2="' + y.toFixed(1) +
+              '" stroke="' + axisCol + '" stroke-width="1" stroke-dasharray="2,3"/>' +
+              '<text x="' + (P-6) + '" y="' + (y+3).toFixed(1) + '" text-anchor="end" fill="' + txtCol +
+              '" font-size="10" font-family="' + numFont + '">' + (Math.round(v*10)/10) + '</text>';
+    }
+    let xax = '';
+    for(let i = 0; i < RG_HOURS; i += 3){
+      xax += '<text x="' + sx(i).toFixed(1) + '" y="' + (H-P+15) + '" text-anchor="middle" fill="' + txtCol +
+             '" font-size="9" font-family="' + numFont + '">' + rgHourLabel(i) + '</text>';
+    }
+    let paths = '';
+    series.forEach(function(s){
+      let d = '', open = false, dots = '';
+      for(let i = 0; i < RG_HOURS; i++){
+        const v = day.rows[i][s.key];
+        if(v == null){ open = false; continue; }
+        const x = sx(i), y = sy(v);
+        d += (open ? ' L' : ' M') + x.toFixed(1) + ' ' + y.toFixed(1);
+        open = true;
+        dots += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.6" fill="' + s.color + '"/>';
+      }
+      if(d) paths += '<path d="' + d.trim() + '" fill="none" stroke="' + s.color + '" stroke-width="2" stroke-linejoin="round"/>' + dots;
+    });
+    const legend = series.map(function(s){
+      return '<span class="rg-legend-i"><span class="sw" style="background:' + s.color + ';"></span>' + s.label + '</span>';
+    }).join('');
+    return '<div style="overflow-x:auto;"><svg viewBox="0 0 ' + W + ' ' + H + '" ' +
+      'style="width:100%;min-width:320px;height:auto;' +
+      (forPrint ? 'background:#fff;' : 'background:var(--surface);border:1px solid var(--border);border-radius:12px;') +
+      'display:block;">' +
+      '<text x="' + (W/2) + '" y="16" text-anchor="middle" fill="' + txtCol + '" font-size="11" font-family="' + numFont + '">Rate M³/hr</text>' +
+      grid + xax + paths +
+      '<line x1="' + P + '" y1="' + (H-P) + '" x2="' + (W-P) + '" y2="' + (H-P) + '" stroke="' + axisCol + '" stroke-width="1"/>' +
+      '<line x1="' + P + '" y1="' + P + '" x2="' + P + '" y2="' + (H-P) + '" stroke="' + axisCol + '" stroke-width="1"/>' +
+      '</svg></div>' +
+      '<div class="rg-legend">' + legend + '</div>';
+  }
+  function rgRenderChart(){
+    const el = document.getElementById('rgChart');
+    if(!el) return;
+    // The chart is a PETRECO-vs-Ras Gara comparison, so it is not shown to the
+    // plant account at all.
+    if(rgOwnSideOnly()){ el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="rg-sec-title"><svg class="ico" aria-hidden="true"><use href="#i-decline"/></svg> Ras Gara Test — ' + escHtml(_rgDate) + '</div>' +
+                   rgChartSVG(rgGetDay(_rgDate), false);
+  }
+
+  // ── cross-day history (the workbook's HISTORY sheet) ───────────────────
+  function rgHistoryRows(){
+    return Object.keys(RG_DAYS).sort().map(function(d){
+      const c = rgCalc(rgGetDay(d));
+      return { date:d, p:c.pTotal, r:c.rTotal, diff:c.loss };
+    }).filter(function(x){ return x.p != null || x.r != null; });
+  }
+  function rgRenderHistory(){
+    const el = document.getElementById('rgHistory');
+    if(!el) return;
+    const rows = rgHistoryRows();
+    if(!rows.length){ el.innerHTML = '<div class="rg-empty">No days recorded yet.</div>'; return; }
+    const side = rgSide();
+    let body = '';
+    rows.slice().reverse().forEach(function(x){
+      if(side !== 'both'){
+        body += '<tr data-rgday="' + escAttr(x.date) + '" style="cursor:pointer">' +
+          '<td class="rg-time">' + escHtml(x.date) + '</td>' +
+          '<td>' + rgFmt(side === 'petreco' ? x.p : x.r, 1) + '</td></tr>';
+        return;
+      }
+      const cls = x.diff == null ? '' : (x.diff > 0 ? 'style="color:var(--red,#f87171)"' : 'style="color:var(--green,#4ade80)"');
+      body += '<tr data-rgday="' + escAttr(x.date) + '" style="cursor:pointer">' +
+        '<td class="rg-time">' + escHtml(x.date) + '</td>' +
+        '<td>' + rgFmt(x.p,1) + '</td><td>' + rgFmt(x.r,1) + '</td>' +
+        '<td ' + cls + '>' + rgFmt(x.diff,1) + '</td></tr>';
+    });
+    const head = side !== 'both'
+      ? '<tr><th>Date</th><th>' + (side === 'petreco' ? 'PETRECO' : 'Ras Gara') + ' total m³/d</th></tr>'
+      : '<tr><th>Date</th><th>PETRECO</th><th>R/G</th><th>Difference</th></tr>';
+    el.innerHTML = '<div class="rg-tbl-wrap"><table class="rg-tbl">' +
+      '<thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+  }
+
+  function rgRenderAll(){
+    if(!_rgDate) _rgDate = rgToday();
+    // Flag the body so CSS can size the own-side table for three columns
+    // instead of five — the 520px minimum was pushing the plant account's
+    // Cumulative column off a phone screen.
+    document.body.classList.toggle('rg-own-side', rgOwnSideOnly());
+    const inp = document.getElementById('rgDate');
+    if(inp && inp.value !== _rgDate) inp.value = _rgDate;
+    // An operator never sees a comparison, so the heading must not promise one.
+    // Print and e-mail produce the comparison report, so they are not offered
+    // to either operator group either.
+    const side = rgSide();
+    const COPY = {
+      both:    { title:' Ras Gara — Production Comparison',
+                 sub:'Hourly PETRECO vs Ras Gara readings, losses & daily trend',
+                 hist:'Daily comparison history' },
+      petreco: { title:' PETRECO — Daily Readings',
+                 sub:'Enter the hourly PETRECO test-separator readings for each shift',
+                 hist:'Your recorded days' },
+      rasgara: { title:' Ras Gara — Daily Readings',
+                 sub:'Enter the hourly Ras Gara plant readings for each shift',
+                 hist:'Your recorded days' }
+    }[side];
+    // lastChild, not textContent: the heading holds an SVG icon as its first
+    // child and textContent would delete it.
+    const hd = document.getElementById('rgHeading');
+    if(hd) hd.lastChild.textContent = COPY.title;
+    const sub = document.getElementById('rgSubtitle');
+    if(sub) sub.textContent = COPY.sub;
+    const acts = document.querySelector('#page-rasgara .rg-actions');
+    if(acts) acts.style.display = (side === 'both') ? '' : 'none';
+    const histTitle = document.querySelector('#rgHistTitle span');
+    if(histTitle) histTitle.textContent = COPY.hist;
+    rgRenderTable(); rgRenderTotals(); rgRenderChart(); rgRenderHistory();
+    const sv = document.getElementById('rgSaved');
+    const day = rgGetDay(_rgDate);
+    if(sv) sv.textContent = day.updatedAt
+      ? 'last saved ' + new Date(day.updatedAt).toLocaleString('en-GB') + (day.updatedBy ? ' by ' + day.updatedBy : '')
+      : '';
+  }
+  window.refreshRasGaraPage = rgRenderAll;
+
+  // ── editing & persistence ───────────────────────────────────────────────
+  function rgApplyInput(kind, i, raw){
+    const day = RG_DAYS[_rgDate] || rgBlankDay(_rgDate);
+    if(!day.rows) day.rows = rgBlankDay(_rgDate).rows;
+    while(day.rows.length < RG_HOURS) day.rows.push({ p:null, r:null, rc:null });
+    // Guard here as well as in the UI: a disabled input is not security.
+    if(kind === 'p' && !rgCanEditPetreco()) return false;
+    if((kind === 'r' || kind === 'rc') && !rgCanEditRasGara()) return false;
+    day.rows[i][kind] = rgNum(raw);
+    day.date = _rgDate;
+    day.startHour = RG_START_HOUR;
+    RG_DAYS[_rgDate] = day;
+    return true;
+  }
+  function rgSaveLocal(){
+    try { lsSet(RG_LS, JSON.stringify(RG_DAYS)); checkStorageHeadroom(); } catch(e){}
+  }
+  function rgQueueSave(){
+    rgSaveLocal();
+    if(_rgSaveTimer) clearTimeout(_rgSaveTimer);
+    // Debounced: an operator typing 24 rows should produce one write, not 24.
+    _rgSaveTimer = setTimeout(function(){ _rgSaveTimer = null; rgPushToCloud(); }, 1200);
+  }
+  async function rgPushToCloud(){
+    if(rgReadOnly()) return;
+    if(typeof db === 'undefined' || typeof FIREBASE_OK === 'undefined' || !FIREBASE_OK) return;
+    const day = RG_DAYS[_rgDate];
+    if(!day) return;
+    const who = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : 'user';
+    try {
+      _rgSkipNext = true;
+      // Write ONLY the fields this role owns, merged into whatever is already
+      // there.
+      //
+      // The previous version sent the entire day from this device's local copy.
+      // With one operator group that was survivable; with two it is data loss:
+      // the PETRECO operator saves at 14:10 carrying a copy of the Ras Gara
+      // column from 13:00, and Ras Gara's 14:00 entry is silently gone. Worst
+      // offline, where a phone can queue a write for hours before replaying it
+      // — which is exactly the case this app is built for.
+      //
+      // merge:true deep-merges maps, so `{rows:{"7":{p:5}}}` leaves
+      // rows["7"].r and .rc untouched, and the merge happens server-side at
+      // replay time rather than against a stale local snapshot.
+      // One exception to "own fields only": a day still stored in the old array
+      // shape has to be rewritten whole, because merging a map into an array
+      // replaces it rather than merging. Sending both sides once converts the
+      // document; every later save is a proper partial patch. The local copy is
+      // authoritative for that single write because the listener has just
+      // synced it.
+      const upgrade = !!(RG_DAYS[_rgDate] && RG_DAYS[_rgDate]._legacyRows);
+      const edP = rgCanEditPetreco() || upgrade;
+      const edR = rgCanEditRasGara() || upgrade;
+      const rowsPatch = {};
+      for(let i = 0; i < RG_HOURS; i++){
+        const src = day.rows[i] || {};
+        const cell = {};
+        if(edP) cell.p = src.p == null ? null : src.p;
+        if(edR){ cell.r  = src.r  == null ? null : src.r;
+                 cell.rc = src.rc == null ? null : src.rc; }
+        rowsPatch[String(i)] = cell;
+      }
+      if(upgrade) RG_DAYS[_rgDate]._legacyRows = false;
+      await db.collection(RG_COL).doc(_rgDate).set({
+        date:_rgDate, startHour:RG_START_HOUR, rows:rowsPatch,
+        updatedBy:who, updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+      const dates = Object.keys(RG_DAYS).sort();
+      await db.collection(RG_META.col).doc(RG_META.doc).set({
+        dates:dates, count:dates.length,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(), updatedBy:who
+      });
+      day.updatedAt = Date.now(); day.updatedBy = who;
+      rgSaveLocal();
+      const sv = document.getElementById('rgSaved');
+      if(sv) sv.textContent = 'saved ' + new Date().toLocaleTimeString('en-GB');
+      if(typeof updateCloudStatus === 'function') updateCloudStatus('synced','Saved to cloud');
+    } catch(err){
+      console.error('[RasGara] save failed', err);
+      showToast('Could not save to cloud: ' + (err.code || err.message), true);
+    }
+  }
+
+  // ── cloud sync (same cache-version pattern as the other datasets) ──────
+  function rgStartListener(){
+    rgStopListener();
+    if(typeof db === 'undefined' || typeof FIREBASE_OK === 'undefined' || !FIREBASE_OK) return;
+    _rgMetaUnsub = db.collection(RG_META.col).doc(RG_META.doc).onSnapshot(async function(doc){
+      if(doc.metadata && doc.metadata.hasPendingWrites && !(doc.data() && doc.data().updatedAt)) return;
+      if(!doc.exists){ _rgFirstSnap = false; return; }
+      const data = doc.data() || {};
+      const ts = data.updatedAt ? data.updatedAt.toMillis() : 0;
+      const isFirst = _rgFirstSnap; _rgFirstSnap = false;
+      if(!isFirst && ts === _rgLastTs) return;
+      _rgLastTs = ts;
+      if(_rgSkipNext){ _rgSkipNext = false; setSyncedVersion(RG_VERK, ts); return; }
+      if(isCacheCurrent(RG_VERK, ts, Object.keys(RG_DAYS).length > 0)){
+        console.log('[Firestore] Ras Gara already current (v' + ts + ') — skipped collection read');
+        rgRenderAll(); return;
+      }
+      try {
+        const snap = await db.collection(RG_COL).get();
+        const obj = {};
+        snap.forEach(function(d){
+          const dd = d.data() || {};
+          obj[dd.date || d.id] = {
+            date:dd.date || d.id, startHour:dd.startHour || RG_START_HOUR, rows:rgRowsToArray(dd.rows),
+            // A day still stored as an array pre-dates the merge-write change.
+            // Merging a map into an array REPLACES it, so a partial patch would
+            // drop the other side. Flagged here; rgPushToCloud sends the whole
+            // day once to convert the shape, then patches normally after that.
+            _legacyRows: Array.isArray(dd.rows),
+            updatedBy:dd.updatedBy || '',
+            updatedAt:(dd.updatedAt && dd.updatedAt.toMillis) ? dd.updatedAt.toMillis() : 0
+          };
+        });
+        RG_DAYS = obj;
+        rgSaveLocal();
+        setSyncedVersion(RG_VERK, ts);
+        rgRenderAll();
+        if(!isFirst) showToast('Readings synced from cloud');
+      } catch(err){ console.error('[Firestore] Ras Gara fetch failed', err); }
+    }, function(err){ console.error('[Firestore] Ras Gara listener error', err); });
+  }
+  function rgStopListener(){
+    if(_rgMetaUnsub){ _rgMetaUnsub(); _rgMetaUnsub = null; }
+    _rgFirstSnap = true; _rgLastTs = 0;
+  }
+  window.startRasGaraListener = rgStartListener;
+  window.stopRasGaraListener  = rgStopListener;
+
+  // ── wiring ──────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function(){
+    const dateEl = document.getElementById('rgDate');
+    if(dateEl){
+      dateEl.value = rgToday();
+      dateEl.addEventListener('change', function(){
+        _rgDate = this.value || rgToday();
+        rgRenderAll();
+      });
+    }
+    const todayBtn = document.getElementById('rgTodayBtn');
+    if(todayBtn) todayBtn.addEventListener('click', function(){ _rgDate = rgToday(); rgRenderAll(); });
+
+    const area = document.getElementById('rgTableArea');
+    if(area){
+      // Delegated so the handlers survive every re-render.
+      area.addEventListener('input', function(e){
+        const t = e.target;
+        if(!t || !t.classList.contains('rg-in')) return;
+        const kind = t.getAttribute('data-rg'), i = parseInt(t.getAttribute('data-i'), 10);
+        if(!kind || isNaN(i)) return;
+        if(!rgApplyInput(kind, i, t.value)) return;
+        t.classList.add('rg-dirty');
+        // Only the derived cells and totals need repainting — never the input
+        // the operator is typing into, or the caret would jump.
+        rgRefreshDerived();
+        rgQueueSave();
+      });
+      area.addEventListener('blur', function(e){
+        if(e.target && e.target.classList.contains('rg-in')) e.target.classList.remove('rg-dirty');
+      }, true);
+    }
+    const hist = document.getElementById('rgHistory');
+    if(hist) hist.addEventListener('click', function(e){
+      const tr = e.target.closest('tr[data-rgday]');
+      if(!tr) return;
+      _rgDate = tr.getAttribute('data-rgday');
+      rgRenderAll();
+      document.getElementById('page-rasgara').scrollIntoView({behavior:'smooth', block:'start'});
+    });
+    const pb = document.getElementById('rgPrintBtn');
+    if(pb) pb.addEventListener('click', function(){ rgPrintReport(); });
+    const mb = document.getElementById('rgMailBtn');
+    if(mb) mb.addEventListener('click', function(){ rgEmailReport(); });
+  });
+
+  // Repaint the calculated cells + totals + chart without touching inputs.
+  function rgRefreshDerived(){
+    const day = rgGetDay(_rgDate), c = rgCalc(day);
+    if(!rgOwnSideOnly()){
+      const rows = document.querySelectorAll('#rgTableArea tbody tr');
+      for(let i = 0; i < rows.length; i++){
+        const cell = rows[i].children[2];   // PETRECO cumulative column
+        if(cell) cell.textContent = rgFmt(c.pCum[i], 1);
+      }
+    }
+    rgRenderTotals(); rgRenderChart();
+  }
+
+  // ── written summary ─────────────────────────────────────────────────────
+  // The number alone does not tell an operator whether the shift was normal.
+  // Compare against the recent average so the report says something useful.
+  function rgSummaryText(day){
+    const c = rgCalc(day);
+    if(c.pTotal == null && c.rTotal == null) return 'No readings were recorded for this shift.';
+    const parts = [];
+    parts.push('Over the 24-hour shift beginning ' + rgHourLabel(0) + ' on ' + day.date +
+               ', PETRECO metered ' + rgFmt(c.pTotal,1) + ' m³ (' + rgFmt(c.pBbl,0) + ' bbl) and Ras Gara metered ' +
+               rgFmt(c.rTotal,1) + ' m³ (' + rgFmt(c.rBbl,0) + ' bbl).');
+    if(c.loss != null){
+      const dir = c.loss > 0 ? 'less than PETRECO' : 'more than PETRECO';
+      parts.push('Ras Gara produced ' + rgFmt(Math.abs(c.loss),1) + ' m³ (' + rgFmt(Math.abs(c.lossBbl),0) + ' bbl) ' + dir +
+                 (c.lossPct == null ? '' : ', a difference of ' + rgFmt(Math.abs(c.lossPct),1) + '% of the PETRECO figure') + '.');
+    }
+    // Context from the previous recorded days.
+    const hist = rgHistoryRows().filter(function(x){ return x.date < day.date && x.diff != null; });
+    const recent = hist.slice(-7);
+    if(recent.length >= 2){
+      const avg = recent.reduce(function(a,x){ return a + x.diff; }, 0) / recent.length;
+      const delta = (c.loss == null) ? null : c.loss - avg;
+      parts.push('The average difference over the previous ' + recent.length + ' recorded day(s) is ' +
+                 rgFmt(avg,1) + ' m³/d.' +
+                 (delta == null ? '' :
+                   Math.abs(delta) < 1
+                     ? ' This shift is in line with that average.'
+                     : ' This shift is ' + rgFmt(Math.abs(delta),1) + ' m³/d ' +
+                       (delta > 0 ? 'worse' : 'better') + ' than that average.'));
+    }
+    const missP = day.rows.filter(function(r){ return r.p == null; }).length;
+    const missR = day.rows.filter(function(r){ return r.r == null; }).length;
+    if(missP || missR){
+      parts.push('Note: ' + (missP ? missP + ' PETRECO ' : '') + (missP && missR ? 'and ' : '') +
+                 (missR ? missR + ' Ras Gara ' : '') + 'hourly reading(s) were not entered, so the totals cover only the hours recorded.');
+    }
+    return parts.join(' ');
+  }
+
+  // ── printable report (also the thing that gets e-mailed) ───────────────
+  function rgReportHTML(day){
+    const c = rgCalc(day);
+    let rows = '';
+    for(let i = 0; i < RG_HOURS; i++){
+      const r = day.rows[i];
+      rows += '<tr>' +
+        '<td>' + rgHourLabel(i) + '</td>' +
+        '<td>' + rgFmt(r.p,2) + '</td><td>' + rgFmt(c.pCum[i],1) + '</td>' +
+        '<td>' + rgFmt(r.r,2) + '</td><td>' + rgFmt(r.rc,1) + '</td>' +
+      '</tr>';
+    }
+    return '' +
+'<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ras Gara Comparison ' + escHtml(day.date) + '</title>' +
+'<style>' +
+'*{box-sizing:border-box}' +
+'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:22px;background:#fff;}' +
+'h1{font-size:19px;margin:0 0 2px;} h2{font-size:13px;margin:20px 0 7px;color:#334155;}' +
+'.sub{font-size:12px;color:#555;margin-bottom:16px;}' +
+'table{border-collapse:collapse;width:100%;font-size:11px;}' +
+'th,td{border:1px solid #cbd5e1;padding:4px 6px;text-align:center;}' +
+'th{background:#f1f5f9;font-size:10px;text-transform:uppercase;letter-spacing:.4px;}' +
+'th.p{background:#e0f2fe;} th.r{background:#fef3c7;}' +
+'.cards{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;}' +
+'.card{flex:1;min-width:150px;border:1px solid #cbd5e1;border-radius:8px;padding:9px 11px;}' +
+'.card .k{font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:.5px;}' +
+'.card .v{font-size:19px;font-weight:700;margin-top:2px;}' +
+'.card .s{font-size:10px;color:#64748b;}' +
+'.card.p .v{color:#0369a1;} .card.r .v{color:#b45309;} .card.d.neg .v{color:#b91c1c;} .card.d.pos .v{color:#15803d;}' +
+'.summary{font-size:12px;line-height:1.65;background:#f8fafc;border-left:3px solid #0369a1;padding:10px 13px;margin:6px 0 4px;}' +
+'.foot{margin-top:18px;font-size:10px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:7px;}' +
+'.rg-legend{display:flex;gap:14px;justify-content:center;font-size:10px;color:#475569;margin-top:4px;}' +
+'.rg-legend .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;}' +
+'@media print{body{padding:0;} .cards{break-inside:avoid;} table{break-inside:auto;}}' +
+'</style></head><body>' +
+'<h1>Ras Gara — Production Comparison</h1>' +
+'<div class="sub">Shift ' + rgHourLabel(0) + ' ' + escHtml(day.date) + ' → ' +
+   rgHourLabel(RG_HOURS-1) + ' ' + escHtml(rgRowDate(day.date, RG_HOURS-1)) +
+   ' &nbsp;·&nbsp; PETRECO test separator T.B. 6-2 vs Ras Gara plant</div>' +
+'<div class="cards">' +
+  '<div class="card p"><div class="k">PETRECO total</div><div class="v">' + rgFmt(c.pTotal,1) + ' m³</div><div class="s">' + rgFmt(c.pBbl,0) + ' bbl/d</div></div>' +
+  '<div class="card r"><div class="k">Ras Gara total</div><div class="v">' + rgFmt(c.rTotal,1) + ' m³</div><div class="s">' + rgFmt(c.rBbl,0) + ' bbl/d</div></div>' +
+  '<div class="card d ' + (c.loss == null ? '' : (c.loss > 0 ? 'neg' : 'pos')) + '">' +
+     '<div class="k">Difference</div><div class="v">' +
+     (c.loss == null ? '—' : (c.loss > 0 ? '−' : '+') + rgFmt(Math.abs(c.loss),1) + ' m³') + '</div>' +
+     '<div class="s">' + rgFmt(Math.abs(c.lossBbl),0) + ' bbl/d' +
+     (c.lossPct == null ? '' : ' · ' + rgFmt(Math.abs(c.lossPct),1) + '%') +
+     (c.loss == null ? '' : (c.loss > 0 ? ' less at Ras Gara' : ' more at Ras Gara')) + '</div></div>' +
+'</div>' +
+'<h2>Summary</h2><div class="summary">' + escHtml(rgSummaryText(day)) + '</div>' +
+'<h2>Hourly comparison</h2>' +
+'<table><thead>' +
+ '<tr><th></th><th class="p" colspan="2">PETRECO</th><th class="r" colspan="2">Ras Gara</th></tr>' +
+ '<tr><th>Time</th><th class="p">M³/hr</th><th class="p">Cumulative</th><th class="r">M³/hr</th><th class="r">Cumulative</th></tr>' +
+ '</thead><tbody>' + rows + '</tbody>' +
+ '<tfoot><tr><th>Total</th><th>' + rgFmt(c.pTotal,1) + '</th><th>—</th><th>' + rgFmt(c.rTotal,1) + '</th><th>—</th></tr></tfoot>' +
+'</table>' +
+'<h2>Rate comparison</h2>' + rgChartSVG(day, true) +
+'<div class="foot">Generated by the PETROBEL Land Wells app on ' + new Date().toLocaleString('en-GB') +
+  (day.updatedBy ? ' · last data entry by ' + escHtml(day.updatedBy) : '') + '</div>' +
+'</body></html>';
+  }
+
+  function rgOpenReportWindow(){
+    const day = rgGetDay(_rgDate);
+    const w = window.open('', '_blank');
+    if(!w){ showToast('Pop-up blocked — allow pop-ups to print', true); return null; }
+    w.document.open(); w.document.write(rgReportHTML(day)); w.document.close();
+    return w;
+  }
+  function rgPrintReport(){
+    const w = rgOpenReportWindow();
+    if(!w) return;
+    // Give the browser a beat to lay the report out before invoking print.
+    setTimeout(function(){ try { w.focus(); w.print(); } catch(e){} }, 400);
+  }
+
+  // ── PDF: a single-page document wrapping a rendered image of the report ─
+  // Hand-built rather than pulling in a 365 KB PDF library for one button.
+  function rgBuildPdf(jpegDataUrl, pxW, pxH){
+    const b64 = jpegDataUrl.split(',')[1];
+    const bin = atob(b64);
+    // A4 portrait at 72 dpi, with a small margin; scale the image to fit.
+    const PW = 595.28, PH = 841.89, M = 24;
+    const availW = PW - 2*M, availH = PH - 2*M;
+    const scale = Math.min(availW / pxW, availH / pxH);
+    const w = pxW * scale, h = pxH * scale;
+    const x = (PW - w) / 2, y = PH - M - h;
+    const objs = [];
+    objs[1] = '<</Type/Catalog/Pages 2 0 R>>';
+    objs[2] = '<</Type/Pages/Kids[3 0 R]/Count 1>>';
+    objs[3] = '<</Type/Page/Parent 2 0 R/MediaBox[0 0 ' + PW.toFixed(2) + ' ' + PH.toFixed(2) +
+              ']/Resources<</XObject<</I0 4 0 R>>/ProcSet[/PDF/ImageC]>>/Contents 5 0 R>>';
+    const stream = 'q ' + w.toFixed(2) + ' 0 0 ' + h.toFixed(2) + ' ' + x.toFixed(2) + ' ' + y.toFixed(2) + ' cm /I0 Do Q';
+    // Build as latin1 so every byte offset below is exact.
+    let pdf = '%PDF-1.4\n';
+    const offsets = [];
+    function add(num, dict, streamData){
+      offsets[num] = pdf.length;
+      pdf += num + ' 0 obj\n' + dict + '\n';
+      if(streamData != null) pdf += 'stream\n' + streamData + '\nendstream\n';
+      pdf += 'endobj\n';
+    }
+    add(1, objs[1]); add(2, objs[2]); add(3, objs[3]);
+    add(4, '<</Type/XObject/Subtype/Image/Width ' + pxW + '/Height ' + pxH +
+           '/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ' + bin.length + '>>', bin);
+    add(5, '<</Length ' + stream.length + '>>', stream);
+    const xref = pdf.length;
+    pdf += 'xref\n0 6\n0000000000 65535 f \n';
+    for(let i = 1; i <= 5; i++) pdf += String(offsets[i]).padStart(10,'0') + ' 00000 n \n';
+    pdf += 'trailer\n<</Size 6/Root 1 0 R>>\nstartxref\n' + xref + '\n%%EOF';
+    const bytes = new Uint8Array(pdf.length);
+    for(let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 0xff;
+    return new Blob([bytes], { type:'application/pdf' });
+  }
+
+  async function rgMakePdfBlob(){
+    const day = rgGetDay(_rgDate);
+    // Render the report off-screen at 2x for a crisp page.
+    const host = document.createElement('iframe');
+    host.style.cssText = 'position:fixed;left:-10000px;top:0;width:820px;height:1200px;border:0;';
+    document.body.appendChild(host);
+    try {
+      const doc = host.contentDocument;
+      doc.open(); doc.write(rgReportHTML(day)); doc.close();
+      await new Promise(function(res){ setTimeout(res, 350); });
+      const target = doc.body;
+      const canvas = await html2canvas(target, { scale:2, backgroundColor:'#ffffff',
+        width:820, windowWidth:820, height:target.scrollHeight, windowHeight:target.scrollHeight });
+      const jpeg = canvas.toDataURL('image/jpeg', 0.92);
+      return rgBuildPdf(jpeg, canvas.width, canvas.height);
+    } finally { host.remove(); }
+  }
+
+  async function rgEmailReport(){
+    const day = rgGetDay(_rgDate);
+    const fname = 'Ras_Gara_Comparison_' + day.date + '.pdf';
+    const subject = 'Ras Gara production comparison — ' + day.date;
+    const body = rgSummaryText(day) + '\n\n(The full table and chart are in the attached PDF.)';
+    showToast('Building PDF…');
+    let blob;
+    try { blob = await rgMakePdfBlob(); }
+    catch(err){ console.error('[RasGara] PDF failed', err); showToast('Could not build the PDF', true); return; }
+
+    // Preferred path: hand the PDF to the phone's share sheet, where Gmail and
+    // Outlook appear with the file already attached.
+    const file = new File([blob], fname, { type:'application/pdf' });
+    if(navigator.canShare && navigator.canShare({ files:[file] }) && navigator.share){
+      try {
+        await navigator.share({ files:[file], title:subject, text:body });
+        return;
+      } catch(err){
+        if(err && err.name === 'AbortError') return;   // user backed out
+        console.warn('[RasGara] share failed, falling back', err);
+      }
+    }
+    // Fallback (desktop): download the PDF, then open a Gmail compose window
+    // with the subject and summary already filled in, ready to attach it.
+    _downloadBlob(blob, fname);
+    const gmail = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
+                  encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    setTimeout(function(){ window.open(gmail, '_blank', 'noopener'); }, 600);
+    showToast('PDF downloaded — attach it to the Gmail draft that just opened');
+  }
+
+
+
+  window.__RG = { get days(){ return RG_DAYS; }, getDay:rgGetDay, calc:rgCalc,
+                  hourLabel:rgHourLabel, get date(){ return _rgDate; },
+                  COL:RG_COL, META:RG_META, LS:RG_LS, VERK:RG_VERK,
+                  START:RG_START_HOUR, HOURS:RG_HOURS, BBL:M3_TO_BBL,
+                  fmt:rgFmt, num:rgNum, rowDate:rgRowDate, today:rgToday,
+                  chartSVG:rgChartSVG, reportHTML:rgReportHTML, makePdfBlob:rgMakePdfBlob,
+                  setDate:function(d){ _rgDate = d; rgRenderAll(); } };
+})();
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+//  BACKUP / MIGRATION  (admin only)
+// ══════════════════════════════════════════════════════════════════════
+// Export writes every day this device holds as a single JSON file. Import
+// reads one back and pushes it to Firestore.
+//
+// This is how the history comes across from the old Land Wells project: export
+// there (with migration/export-rasgara.html, which talks to the OLD project),
+// import here. After the cutover it stays useful as a plain backup.
+(function(){
+  function _days(){ return (window.__RG && window.__RG.days) || {}; }
+
+  function exportJSON(){
+    const days = _days();
+    const dates = Object.keys(days).sort();
+    if(!dates.length){ showToast('Nothing to export yet', true); return; }
+    const payload = {
+      _format: 'petrobel-rasgara-days',
+      _version: 1,
+      // Stamped from the browser clock purely so a human can tell two backup
+      // files apart. Nothing reads it back.
+      exportedAt: new Date().toISOString(),
+      exportedBy: (currentUser && currentUser.email) || '',
+      count: dates.length,
+      days: dates.map(function(d){
+        const x = days[d];
+        return { date:x.date, startHour:x.startHour, rows:x.rows,
+                 updatedBy:x.updatedBy || '', updatedAt:x.updatedAt || 0 };
+      })
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rasgara-backup-' + _isoDate(new Date()) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    showToast('Exported ' + dates.length + ' day(s)');
+  }
+
+  function _status(t){ const el = document.getElementById('rgImportStatus'); if(el) el.textContent = t; }
+
+  // A row is "real" if any of the three fields carries a number. A file full of
+  // empty rows must not be allowed to blank out a day that already has data —
+  // that is the one way an import could destroy something.
+  function _hasReadings(rows){
+    return Array.isArray(rows) && rows.some(function(r){
+      return r && (r.p != null || r.r != null || r.rc != null);
+    });
+  }
+
+  async function importJSON(file){
+    if(!file) return;
+    if(!FIREBASE_OK){ _status('Not connected — cannot import.'); return; }
+    if(!isAdmin){ _status('Admin only.'); return; }
+    let payload;
+    try { payload = JSON.parse(await file.text()); }
+    catch(e){ _status('That file is not valid JSON.'); return; }
+
+    const days = Array.isArray(payload) ? payload
+               : (payload && Array.isArray(payload.days)) ? payload.days : null;
+    if(!days){ _status('Unrecognised file — expected a Ras Gara export.'); return; }
+
+    const valid = days.filter(function(d){
+      return d && typeof d.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.date) && _hasReadings(d.rows);
+    });
+    const skipped = days.length - valid.length;
+    if(!valid.length){ _status('No days with readings found in that file.'); return; }
+
+    _status('Importing ' + valid.length + ' day(s)…');
+    const who = (currentUser && currentUser.name) || 'import';
+    let done = 0, failed = 0;
+    for(const d of valid){
+      try {
+        // Written as a map, matching what the app writes. Backup files hold a
+        // plain array because that is the portable shape; converting here is
+        // what keeps a freshly imported project free of legacy array documents.
+        const rowsMap = {};
+        (d.rows || []).forEach(function(r, i){
+          rowsMap[String(i)] = { p: (r && r.p != null) ? r.p : null,
+                                 r: (r && r.r != null) ? r.r : null,
+                                 rc:(r && r.rc!= null) ? r.rc : null };
+        });
+        await db.collection(window.__RG.COL).doc(d.date).set({
+          date: d.date,
+          startHour: (typeof d.startHour === 'number') ? d.startHour : window.__RG.START,
+          rows: rowsMap,
+          updatedBy: d.updatedBy || who,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        done++;
+      } catch(e){ failed++; console.error('[import]', d.date, e); }
+      _status('Importing… ' + (done + failed) + '/' + valid.length);
+    }
+
+    // Rewrite the meta document last. It is the version stamp every device
+    // watches, so touching it is what tells the other phones to re-download —
+    // and doing it after the days means they never fetch a half-written set.
+    try {
+      const snap = await db.collection(window.__RG.COL).get();
+      const dates = []; snap.forEach(function(x){ dates.push((x.data()||{}).date || x.id); });
+      dates.sort();
+      await db.collection(window.__RG.META.col).doc(window.__RG.META.doc).set({
+        dates: dates, count: dates.length,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: who
+      });
+    } catch(e){ console.error('[import] meta', e); }
+
+    _status('Imported ' + done + ' day(s)' +
+            (failed ? ', ' + failed + ' failed' : '') +
+            (skipped ? ', ' + skipped + ' skipped (no readings)' : '') + '.');
+    showToast('Imported ' + done + ' day(s)');
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const ex = document.getElementById('rgExportBtn');
+    const im = document.getElementById('rgImportBtn');
+    const f  = document.getElementById('rgImportFile');
+    if(ex) ex.addEventListener('click', exportJSON);
+    if(im && f) im.addEventListener('click', function(){ f.click(); });
+    if(f) f.addEventListener('change', function(){
+      const file = this.files && this.files[0];
+      this.value = '';            // let the same file be picked twice
+      importJSON(file);
+    });
+  });
+})();
+
+// ══════════════════════════════════════════════════════════════════════
+//  DAY / NIGHT THEME
+// ══════════════════════════════════════════════════════════════════════
+(function(){
+  const KEY = 'rasgara_theme';
+  function applyTheme(mode, persist){
+    const light = (mode === 'light');
+    document.body.classList.toggle('light-mode', light);
+    const btn = document.getElementById('themeToggleBtn');
+    // innerHTML, not textContent: the button holds an SVG <use>, and assigning
+    // text would delete the sprite reference and leave it blank.
+    if(btn) btn.innerHTML = '<svg class="ico ico-lg" aria-hidden="true"><use href="#i-' +
+                            (light ? 'sun' : 'moon') + '"/></svg>';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.setAttribute('content', light ? '#0b3d68' : '#0a1420');
+    if(persist){ try{ localStorage.setItem(KEY, mode); }catch(e){} }
+    // The chart hard-codes nothing, but it is already drawn — repaint it so the
+    // series colours pick up the new tokens immediately rather than at next render.
+    if(typeof window.refreshRasGaraPage === 'function') window.refreshRasGaraPage();
+  }
+  window.toggleTheme = function(){
+    applyTheme(document.body.classList.contains('light-mode') ? 'dark' : 'light', true);
+  };
+  let saved; try{ saved = localStorage.getItem(KEY); }catch(e){}
+  applyTheme((saved === 'light' || saved === 'dark') ? saved : 'light', false);
+})();
+
+// ══════════════════════════════════════════════════════════════════════
+//  SERVICE WORKER
+// ══════════════════════════════════════════════════════════════════════
+// Registered with an explicit './' scope. This app is on its own origin, but
+// the scope is stated anyway so that moving it into a subfolder later cannot
+// let it claim pages that are not its own.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js', { scope:'./' }).then(function(reg){
+      reg.addEventListener('updatefound', function(){
+        const nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', function(){
+          // A waiting worker with a controller already present means this is an
+          // update, not a first install — only then is the banner meaningful.
+          if(nw.state === 'installed' && navigator.serviceWorker.controller){
+            const b = document.getElementById('swUpdateBanner');
+            if(b){
+              b.style.display = 'block';
+              b.onclick = function(){ nw.postMessage({ type:'SKIP_WAITING' }); };
+            }
+          }
+        });
+      });
+    }).catch(function(e){ console.warn('[sw]', e); });
+
+    let _reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      if(_reloaded) return;   // guard against the reload loop
+      _reloaded = true;
+      window.location.reload();
+    });
+  });
+}
+
+</script>
+</body>
+</html>
