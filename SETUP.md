@@ -102,8 +102,7 @@ Then **Users → Add user**, three times:
 | `petreco@petrobel.org` | the PETRECO operators — their M³/hr column only |
 | `rasgara@petrobel.org` | the Ras Gara operators — their two columns only |
 
-These are **new accounts in a new project**. The Land Wells passwords do not
-carry over; set fresh ones.
+Set fresh passwords and hand the operators theirs directly.
 
 If you use different addresses, change them in **two** places or the app and
 the database will disagree:
@@ -159,14 +158,6 @@ still shows the previous day, which is what a night operator wants.
 
 ---
 
-## 7 · Bring the history across
-
-Only if you are migrating from the old Land Wells tab. Follow
-`../migration/MIGRATION.md` — and read its warning about doing the export
-before deploying Land Wells v104.
-
----
-
 ## Checklist
 
 - [ ] Project created, Firestore in **production mode**
@@ -176,5 +167,3 @@ before deploying Land Wells v104.
 - [ ] All three accounts created, passwords handed over
 - [ ] Deployed over HTTPS, development files excluded
 - [ ] Signed in as each of the three accounts and confirmed each sees only what it should
-- [ ] History imported and spot-checked (if migrating)
-- [ ] `rasgara@petrobel.org` **deleted from the Land Wells project**

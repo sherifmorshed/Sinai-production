@@ -4,15 +4,12 @@ A standalone PWA for the hourly production readings of the Sinai field: the
 PETRECO test separator on one side, the Ras Gara plant on the other, and the
 daily comparison between them.
 
-Split out of the PETROBEL Land Wells app, which is where this started life as a
-Ras Gara tab. It is now its own application, on its own Firebase project, with
-its own accounts and its own release cycle. The two apps share nothing at
-runtime.
+A standalone application: its own Firebase project, its own accounts, its own
+release cycle. It depends on nothing outside this folder.
 
 > **On the naming.** The app is *Sinai Field*. *Ras Gara* and *PETRECO* are the
-> two measuring points inside it, and those names stay everywhere they refer to
-> a side — column headers, totals, the operator's own heading. Only the
-> application's own identity changed.
+> two measuring points inside it, and those names appear wherever they refer to
+> a side — column headers, totals, an operator's own heading.
 
 ---
 
@@ -48,8 +45,19 @@ Ras Gara total = Σ hourly M³/hr        bbl/d = total × 6.3
 Difference     = PETRECO total − Ras Gara total
 ```
 
-**Print** opens a one-page report — KPI cards, a written summary, the full
-hourly table, and the rate chart.
+**The difference is highlighted, and the colour means something.** Oil leaves
+Ras Gara and is received at PETRECO, so the two totals should agree:
+
+| | |
+|---|---|
+| **Red** | Ras Gara metered **more** than PETRECO received — oil left that PETRECO cannot account for |
+| **Green** | PETRECO received at least what Ras Gara sent |
+
+The same colouring runs down the Difference column of the daily history, so a
+run of red days is visible at a glance.
+
+**Print** opens a one-page report — the three KPI cards, the full hourly table
+and the rate chart.
 
 **Send by e-mail** builds that report as a PDF and hands it to the phone's share
 sheet, where Gmail and Outlook appear with the file already attached. On a
@@ -73,7 +81,6 @@ Set by `ADMIN_EMAILS`, `PETRECO_EMAILS` and `PLANT_EMAILS` at the top of
 | Chart | yes | no | no |
 | Print / e-mail | yes | no | no |
 | Daily history | Date, PETRECO, R/G, Difference | Date, PETRECO total | Date, Ras Gara total |
-| Backup & migration | yes | no | no |
 | Heading | "Production Comparison" | "PETRECO — Daily Readings" | "Ras Gara — Daily Readings" |
 
 Neither operator group ever sees the other's figures on screen, or the
@@ -124,8 +131,9 @@ rather than a white field — so a derived number never looks like an empty inpu
 
 The Firebase SDK is vendored rather than loaded from Google's CDN because a
 service worker cannot cache a cross-origin script. Loaded remotely, a cold
-offline start leaves `firebase is not defined` and the app never boots — that
-is a real bug the Land Wells app shipped with until v92, not a precaution.
+offline start leaves `firebase is not defined` and the app never boots. Do not
+replace these with the `<script type="module">` snippet the Firebase console
+offers — take only the config values from it.
 
 **Do not upload these** — they are for you, not the server:
 
@@ -133,14 +141,14 @@ is a real bug the Land Wells app shipped with until v92, not a precaution.
 |---|---|
 | `README.md`, `SETUP.md`, `DEVELOPER_REFERENCE.md` | documentation |
 | `firestore.rules` | paste into the Firebase console; never served |
-| `test.html`, `test_plant.html`, `test_petreco.html`, `firebase-stub.js` | offline test harness |
+| `test.html`, `test_petreco.html`, `test_plant.html`, `firebase-stub.js` | offline test harness |
 | `test_build.py` | regenerates the three test files |
 
 ---
 
 ## Working on it
 
-`index.html` is the file you edit — no build step, same as the Land Wells app.
+`index.html` is the file you edit — no build step.
 There is a map of what lives where in a comment at the very top of it.
 
 ```bash
@@ -152,7 +160,7 @@ python3 -m http.server 8000
 
 These run the real app against a stubbed Firebase with three days of seeded
 readings — no project, no network, no risk to live data. Everything works
-there: typing, the chart, print, the PDF, export/import.
+there: typing, the chart, print and the PDF.
 
 They are **snapshots taken from `index.html`**, so after editing it run:
 
@@ -167,6 +175,4 @@ or you will be testing the previous version. Full detail in
 
 ## Getting started
 
-New install → `SETUP.md`.
-Moving the history off the old Land Wells tab → `../migration/MIGRATION.md`,
-and read its warning about export order before you upgrade Land Wells.
+`SETUP.md` — the Firebase project, the rules, the three accounts, deployment.
