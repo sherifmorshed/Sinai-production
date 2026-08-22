@@ -2,7 +2,7 @@
 <html lang="en">
 <!--
   ══════════════════════════════════════════════════════════════════════════
-   RAS GARA — Production Readings                          PETROBEL
+   SINAI FIELD — Production Readings                       PETROBEL
   ══════════════════════════════════════════════════════════════════════════
 
    One self-contained file. Edit it directly — there is no build step.
@@ -47,11 +47,11 @@
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Ras Gara">
+<meta name="apple-mobile-web-app-title" content="Sinai Field">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="PETROBEL Ras Gara — hourly production readings and daily comparison">
+<meta name="description" content="PETROBEL Sinai Field — hourly production readings, PETRECO vs Ras Gara">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Ras Gara — PETROBEL</title>
+<title>Sinai Field — Production Readings</title>
 <style>
 /* Fonts: local-first, no download. Same decision as the Wells app — bundling a
    web face would cost ~300 KB and break the offline guarantee, which matters
@@ -111,7 +111,7 @@ body.light-mode .app-header{ border-bottom:3px solid var(--gold); }
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   flex:1 1 auto; min-width:0; text-align:right; }
 /* Below ~430px there is not room for both the wordmark and the address. The
-   page heading underneath already says "Ras Gara", so the wordmark goes. */
+   page heading underneath carries the page name, so the wordmark goes. */
 @media (max-width:430px){ .ub-title{ display:none; } }
 .ub-role{ font-size:10px; font-weight:800; letter-spacing:1px; color:var(--accent);
   font-family:var(--font-num); white-space:nowrap; }
@@ -305,7 +305,7 @@ td.rg-calc{color:var(--muted);font-family:var(--font-num);font-variant-numeric:t
   <div class="login-card">
     <div class="login-logo">
       <img src="icon.png" alt="PETROBEL">
-      <h1>RAS GARA</h1>
+      <h1>SINAI FIELD</h1>
       <p>Production Readings</p>
     </div>
     <div class="login-field">
@@ -325,7 +325,7 @@ td.rg-calc{color:var(--muted);font-family:var(--font-num);font-variant-numeric:t
 <div class="app-header" id="appHeader" style="display:none;">
   <span class="ub-mark">
     <svg class="ico" aria-hidden="true"><use href="#i-plant"/></svg>
-    <span class="ub-title">Ras&nbsp;Gara</span>
+    <span class="ub-title">Sinai&nbsp;Field</span>
   </span>
   <span class="ub-email" id="ubEmail"></span>
   <span class="ub-role" id="ubRole"></span>
@@ -337,7 +337,7 @@ td.rg-calc{color:var(--muted);font-family:var(--font-num);font-variant-numeric:t
 <div id="app-body" style="display:none;">
 <div id="page-rasgara">
   <div class="page-hdr">
-    <h2 id="rgHeading"><svg class="ico ico-h" aria-hidden="true"><use href="#i-plant"/></svg> Ras Gara — Production Comparison</h2>
+    <h2 id="rgHeading"><svg class="ico ico-h" aria-hidden="true"><use href="#i-plant"/></svg> Production Comparison</h2>
     <p id="rgSubtitle">Hourly PETRECO vs Ras Gara readings, losses &amp; daily trend</p>
   </div>
   <div style="padding:12px 14px 30px;">
@@ -390,7 +390,7 @@ td.rg-calc{color:var(--muted);font-family:var(--font-num);font-variant-numeric:t
 
 <div class="app-footer" id="appFooter" style="display:none;">
   <div class="cloud-line" id="cloud-sync-status"><svg class="ico" aria-hidden="true"><use href="#i-cloud"/></svg> Connecting…</div>
-  PETROBEL · Ras Gara
+  PETROBEL · Sinai Field
 </div>
 
 <div id="toast"></div>
@@ -1054,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // to either operator group either.
     const side = rgSide();
     const COPY = {
-      both:    { title:' Ras Gara — Production Comparison',
+      both:    { title:' Production Comparison',
                  sub:'Hourly PETRECO vs Ras Gara readings, losses & daily trend',
                  hist:'Daily comparison history' },
       petreco: { title:' PETRECO — Daily Readings',
@@ -1324,7 +1324,7 @@ document.addEventListener('DOMContentLoaded', function(){
       '</tr>';
     }
     return '' +
-'<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ras Gara Comparison ' + escHtml(day.date) + '</title>' +
+'<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sinai Field — Production Comparison ' + escHtml(day.date) + '</title>' +
 '<style>' +
 '*{box-sizing:border-box}' +
 'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:22px;background:#fff;}' +
@@ -1346,7 +1346,7 @@ document.addEventListener('DOMContentLoaded', function(){
 '.rg-legend .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;}' +
 '@media print{body{padding:0;} .cards{break-inside:avoid;} table{break-inside:auto;}}' +
 '</style></head><body>' +
-'<h1>Ras Gara — Production Comparison</h1>' +
+'<h1>Sinai Field — Production Comparison</h1>' +
 '<div class="sub">Shift ' + rgHourLabel(0) + ' ' + escHtml(day.date) + ' → ' +
    rgHourLabel(RG_HOURS-1) + ' ' + escHtml(rgRowDate(day.date, RG_HOURS-1)) +
    ' &nbsp;·&nbsp; PETRECO test separator T.B. 6-2 vs Ras Gara plant</div>' +
@@ -1448,7 +1448,7 @@ document.addEventListener('DOMContentLoaded', function(){
   async function rgEmailReport(){
     const day = rgGetDay(_rgDate);
     const fname = 'Ras_Gara_Comparison_' + day.date + '.pdf';
-    const subject = 'Ras Gara production comparison — ' + day.date;
+    const subject = 'Sinai Field production comparison — ' + day.date;
     const body = rgSummaryText(day) + '\n\n(The full table and chart are in the attached PDF.)';
     showToast('Building PDF…');
     let blob;
@@ -1550,7 +1550,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     const days = Array.isArray(payload) ? payload
                : (payload && Array.isArray(payload.days)) ? payload.days : null;
-    if(!days){ _status('Unrecognised file — expected a Ras Gara export.'); return; }
+    if(!days){ _status('Unrecognised file — expected a Sinai Field readings export.'); return; }
 
     const valid = days.filter(function(d){
       return d && typeof d.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.date) && _hasReadings(d.rows);

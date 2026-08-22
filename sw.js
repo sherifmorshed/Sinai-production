@@ -1,12 +1,12 @@
 // ══════════════════════════════════════════
-//  SERVICE WORKER — Ras Gara PWA
+//  SERVICE WORKER — Sinai Field PWA
 //  Caches static assets ONLY. Firebase / Firestore traffic is never cached,
 //  or the app would happily show yesterday's readings as today's.
 // ══════════════════════════════════════════
 
 // Bump this on EVERY release or nobody sees the change. It is the single most
 // common cause of "my fix isn't showing up".
-const CACHE_NAME = 'rasgara-v1';
+const CACHE_NAME = 'sinai-field-v1';
 
 const STATIC_ASSETS = [
   './',
