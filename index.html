@@ -192,6 +192,19 @@ body.light-mode .login-btn{ color:#fff; }
 #toast.show{ transform:translate(-50%,0); opacity:1; }
 #toast.warn{ border-left-color:var(--yellow); }
 
+/* "your PDF is ready" sheet — see rgOfferPdf() for why this exists */
+#pdfSheet{position:fixed;inset:0;z-index:400;display:none;align-items:flex-end;
+  background:rgba(8,20,32,.45);}
+#pdfSheet.show{display:flex;}
+#pdfSheet .box{background:var(--card);border-top:3px solid var(--gold,#c8a34a);
+  border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+  width:100%;box-shadow:0 -6px 26px rgba(8,20,32,.3);}
+#pdfSheet h4{font-size:15px;font-weight:800;margin-bottom:3px;color:var(--text);}
+#pdfSheet .fn{font-size:11.5px;color:var(--muted);font-family:var(--font-num);
+  margin-bottom:13px;word-break:break-all;}
+#pdfSheet .row{display:flex;flex-direction:column;gap:8px;}
+#pdfSheet .row .rg-btn{width:100%;justify-content:center;}
+
 /* ── Footer ─────────────────────────────────────────────────────────── */
 .app-footer{
   margin-top:auto; text-align:center; padding:16px; font-size:12px;
@@ -226,6 +239,42 @@ body.light-mode #swUpdateBanner{ color:#fff; }
 body.light-mode .rg-btn-primary{color:#fff !important;}
 .rg-saved{font-size:11px;color:var(--muted);margin-left:auto;font-family:var(--font-num);}
 .rg-hint{font-size:11px;color:var(--muted);margin:2px 0 10px;}
+.rg-range{display:flex;gap:7px;flex-wrap:wrap;}
+.rg-range button{background:transparent;border:1.5px solid var(--border);border-radius:9px;
+  color:var(--muted);padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;
+  font-family:var(--font-num);letter-spacing:.4px;}
+.rg-range button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+body.light-mode .rg-range button.on{color:#fff;}
+
+/* ── Daily record header ──────────────────────────────────────────────
+   A titled panel rather than the bare uppercase label the other sections
+   use: this one opens a whole second view (a range, a chart, a table and
+   its own printout), so it needs to say what it is covering. The day count
+   lives HERE, which is what lets the range chips read "All" instead of
+   "All 3" — a number inside a button label looks like part of the choice. */
+.rg-rec-head{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  box-shadow:var(--shadow);margin:26px 0 12px;overflow:hidden;}
+.rg-rec-head .bar{height:3px;background:linear-gradient(90deg,var(--accent) 0%,var(--gold) 100%);}
+.rg-rec-head .in{padding:13px 15px;}
+.rg-rec-head .row{display:flex;align-items:flex-start;gap:10px;}
+.rg-rec-head .ico{width:17px;height:17px;color:var(--gold);margin-top:2px;}
+.rg-rec-head h3{font-size:15.5px;font-weight:800;letter-spacing:-.01em;color:var(--text);line-height:1.25;}
+.rg-rec-head .sub{font-size:11.5px;color:var(--muted);font-family:var(--font-num);margin-top:3px;
+  line-height:1.45;}
+.rg-rec-head .sub b{color:var(--text);font-weight:700;}
+.rg-rec-head .chips{margin-top:11px;padding-top:11px;border-top:1px solid var(--border);}
+.rg-rec-head .chips:empty{display:none;}
+.rg-cust{margin-top:11px;padding-top:11px;border-top:1px dashed var(--border);}
+.rg-cust .fld{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;}
+.rg-cust label{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);
+  font-family:var(--font-num);}
+.rg-cust select,.rg-cust input{width:100%;background:var(--surface);border:1.5px solid var(--border);
+  border-radius:9px;color:var(--text);padding:8px 9px;font-size:12.5px;font-family:var(--font-num);}
+.rg-cust select:focus,.rg-cust input:focus{outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--ring);}
+.rg-cust .or{font-size:10.5px;color:var(--muted);text-align:center;margin:9px 0 7px;
+  font-family:var(--font-num);letter-spacing:.5px;}
+.rg-cust .pair{display:flex;gap:9px;}
 .rg-sec-title{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);
   font-family:var(--font-num);margin:22px 0 8px;}
 .rg-tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:13px;background:var(--surface);
@@ -236,6 +285,11 @@ table.rg-tbl td{vertical-align:middle;}
 /* The plant view is three columns, not five; the 520px floor was sized for the
    comparison and pushed its Cumulative column off a phone screen. */
 body.rg-own-side table.rg-tbl{min-width:0;}
+/* Same reason for the daily record: four short columns, and the 520px floor
+   pushed Difference — the column the whole page exists for — off the screen. */
+#rgHistory table.rg-tbl{min-width:0;font-size:11.5px;}
+#rgHistory table.rg-tbl th,#rgHistory table.rg-tbl td{padding:6px 4px;}
+#rgHistory table.rg-tbl td:first-child{text-align:left;padding-left:10px;}
 body.rg-own-side .rg-in{width:100%;max-width:110px;}
 table.rg-tbl th{position:sticky;top:0;background:var(--card);color:var(--muted);font-size:10px;
   letter-spacing:.5px;text-transform:uppercase;padding:7px 6px;border-bottom:1px solid var(--border);text-align:center;font-weight:600;}
@@ -373,8 +427,25 @@ body:not(.light-mode) .rg-card.gain{background:rgba(52,201,138,.12);}
     </div>
 
     <!-- daily trend across days -->
-    <div class="rg-sec-title" id="rgHistTitle"><svg class="ico" aria-hidden="true"><use href="#i-trend"/></svg> <span>Daily comparison history</span></div>
+    <div class="rg-rec-head" id="rgHistTitle">
+      <div class="bar"></div>
+      <div class="in">
+        <div class="row">
+          <svg class="ico" aria-hidden="true"><use href="#i-trend"/></svg>
+          <div>
+            <h3><span id="rgHistHeading">Daily record</span></h3>
+            <div class="sub" id="rgHistSub"></div>
+          </div>
+        </div>
+        <div class="chips rg-range" id="rgRange"></div>
+        <div class="rg-cust" id="rgCustom" style="display:none;"></div>
+      </div>
+    </div>
+    <div id="rgHistChart"></div>
     <div id="rgHistory"></div>
+    <div class="rg-actions" id="rgHistActions">
+      <button class="rg-btn rg-btn-primary" id="rgHistPrintBtn"><svg class="ico" aria-hidden="true"><use href="#i-print"/></svg> Print daily record</button>
+    </div>
   </div>
 </div>
 
@@ -387,6 +458,11 @@ body:not(.light-mode) .rg-card.gain{background:rgba(52,201,138,.12);}
 </div>
 
 <div id="toast"></div>
+<div id="pdfSheet"><div class="box">
+  <h4>Report ready</h4>
+  <div class="fn" id="pdfSheetName"></div>
+  <div class="row" id="pdfSheetRow"></div>
+</div></div>
 <div id="swUpdateBanner"><svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg> Update available — <strong>tap to refresh</strong></div>
 
 <script src="./firebase-app-compat.js"></script>
@@ -516,6 +592,20 @@ function showToast(msg, warn){
   el.className = 'show' + (warn ? ' warn' : '');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(function(){ el.className = ''; }, 3200);
+}
+
+// Save a Blob to the user's device.
+// Revoking the object URL synchronously after click() cancels the download in
+// some browsers before they have finished reading the blob, so it is deferred.
+function _downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 60000);
 }
 
 function updateCloudStatus(status, text){
@@ -720,6 +810,10 @@ document.addEventListener('DOMContentLoaded', function(){
     const p = Math.pow(10, dp == null ? 1 : dp);
     return (Math.round(v * p) / p).toLocaleString('en-US');
   }
+  // Magnitude of a signed figure whose sign is printed separately. Always use
+  // this rather than rgFmt(Math.abs(v)) — Math.abs(null) is 0, so a difference
+  // that does not exist would print as a confident "0" instead of "—".
+  function rgAbs(v, dp){ return v == null ? '—' : rgFmt(Math.abs(v), dp); }
   function rgToday(){
     // Before the 06:00 shift start the "current" shift is still yesterday's.
     const now = new Date();
@@ -773,7 +867,11 @@ document.addEventListener('DOMContentLoaded', function(){
       else pCum.push(null);
       if(row.r != null){ rTot += row.r; rAny = true; }
     }
-    const loss = (pAny || rAny) ? (pTot - rTot) : null;   // PETRECO − Ras Gara
+    // PETRECO − Ras Gara. BOTH sides must have reported something, not either:
+    // with only one side present the other's total is 0, and the difference
+    // becomes the whole of the reporting side's day — a −186 m³ "loss" that is
+    // really just a missing sheet. A comparison needs two numbers to compare.
+    const loss = (pAny && rAny) ? (pTot - rTot) : null;
     return {
       pCum: pCum,
       pTotal: pAny ? pTot : null,
@@ -939,14 +1037,29 @@ document.addEventListener('DOMContentLoaded', function(){
           '<div class="s">m³/d · ' + rgFmt(c.pBbl,0) + ' bbl/d</div></div>' +
         '<div class="rg-card rasgara"><div class="k">Ras Gara total</div><div class="v">' + rgFmt(c.rTotal,1) + '</div>' +
           '<div class="s">m³/d · ' + rgFmt(c.rBbl,0) + ' bbl/d</div></div>' +
-        '<div class="rg-card ' + lossCls + '"><div class="k">Difference</div><div class="v">' + lossSign + rgFmt(Math.abs(c.loss),1) + '</div>' +
-          '<div class="s">m³/d · ' + rgFmt(Math.abs(c.lossBbl),0) + ' bbl/d' +
-          (c.lossPct == null ? '' : ' · ' + rgFmt(Math.abs(c.lossPct),1) + '%') +
+        '<div class="rg-card ' + lossCls + '"><div class="k">Difference</div><div class="v">' + lossSign + rgAbs(c.loss,1) + '</div>' +
+          '<div class="s">m³/d · ' + rgAbs(c.lossBbl,0) + ' bbl/d' +
+          (c.lossPct == null ? '' : ' · ' + rgAbs(c.lossPct,1) + '%') +
           (c.loss == null ? '' : (c.loss > 0 ? ' less at Ras Gara' : ' more at Ras Gara')) + '</div></div>' +
       '</div>';
   }
 
   // ── chart: the workbook's line chart, Time vs Rate M3/hr ───────────────
+  // Which indices get an x-axis label. Stepping blindly by `step` stops short:
+  // over 24 hours a step of 3 ends at index 21 — 03:00 — so a shift that runs
+  // to 05:00 looked like it ended two hours early. The LAST point always gets a
+  // label; if that would crowd the previous one, it replaces it instead.
+  function rgAxisMarks(n, step){
+    const marks = [];
+    for(let i = 0; i < n; i += step) marks.push(i);
+    const last = n - 1;
+    if(marks[marks.length - 1] !== last){
+      if(last - marks[marks.length - 1] < Math.ceil(step * 0.6)) marks.pop();
+      marks.push(last);
+    }
+    return marks;
+  }
+
   function rgChartSVG(day, forPrint){
     const c = rgCalc(day);
     const W = 720, H = 260, P = 42;
@@ -983,10 +1096,10 @@ document.addEventListener('DOMContentLoaded', function(){
               '" font-size="10" font-family="' + numFont + '">' + (Math.round(v*10)/10) + '</text>';
     }
     let xax = '';
-    for(let i = 0; i < RG_HOURS; i += 3){
+    rgAxisMarks(RG_HOURS, 3).forEach(function(i){
       xax += '<text x="' + sx(i).toFixed(1) + '" y="' + (H-P+15) + '" text-anchor="middle" fill="' + txtCol +
              '" font-size="9" font-family="' + numFont + '">' + rgHourLabel(i) + '</text>';
-    }
+    });
     let paths = '';
     series.forEach(function(s){
       let d = '', open = false, dots = '';
@@ -1031,10 +1144,259 @@ document.addEventListener('DOMContentLoaded', function(){
       return { date:d, p:c.pTotal, r:c.rTotal, diff:c.loss };
     }).filter(function(x){ return x.p != null || x.r != null; });
   }
+  // ── the daily record ────────────────────────────────────────────────────
+  // One row per shift day. `_rgSel` is WHICH days are on screen, and it governs
+  // the chart, the table and the printed record together:
+  //
+  //   {k:'month'}                 the current calendar month, 1st onward
+  //   {k:'month', m:'2026-06'}    a specific month, picked from the panel
+  //   {k:'days',  n:90}           the last N recorded days
+  //   {k:'all'}
+  //   {k:'custom', from, to}      an explicit span
+  //
+  // Months are CALENDAR months, not rolling windows. "The last 30 days" and
+  // "this month" answer different questions, and a monthly report wants the
+  // second: a range that starts on the 1st can be compared with the one before
+  // it, and a rolling window cannot.
+  let _rgSel = { k:'month' };
+
+  const _RG_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const _RG_MON_FULL = ['January','February','March','April','May','June','July',
+                        'August','September','October','November','December'];
+  function _rgMonthOf(iso){ return String(iso).slice(0,7); }
+  function _rgCurMonth(){ return rgToday().slice(0,7); }
+  function _rgMonthName(m){
+    const b = String(m).split('-');
+    return (_RG_MON_FULL[parseInt(b[1],10)-1] || b[1]) + ' ' + b[0];
+  }
+  function _rgDayLabel(iso, withYear){
+    const b = String(iso).split('-');
+    if(b.length !== 3) return String(iso);
+    return String(parseInt(b[2],10)) + ' ' + (_RG_MON[parseInt(b[1],10)-1] || b[1]) +
+           (withYear ? ' ' + b[0] : '');
+  }
+  function _rgSpan(from, to){
+    if(from === to) return _rgDayLabel(from, true);
+    const sameYear = String(from).slice(0,4) === String(to).slice(0,4);
+    return _rgDayLabel(from, !sameYear) + ' – ' + _rgDayLabel(to, true);
+  }
+  // Every month that has at least one recorded day, newest first.
+  function rgMonthsPresent(){
+    const seen = {};
+    rgHistoryRows().forEach(function(x){ seen[_rgMonthOf(x.date)] = true; });
+    return Object.keys(seen).sort().reverse();
+  }
+
+  function rgRangeRows(){
+    const all = rgHistoryRows();
+    if(!all.length) return all;
+    const s = _rgSel;
+    if(s.k === 'days')  return all.length > s.n ? all.slice(-s.n) : all;
+    if(s.k === 'month'){
+      const m = s.m || _rgCurMonth();
+      return all.filter(function(x){ return _rgMonthOf(x.date) === m; });
+    }
+    if(s.k === 'custom'){
+      const f = s.from || all[0].date, t = s.to || all[all.length-1].date;
+      return all.filter(function(x){ return x.date >= f && x.date <= t; });
+    }
+    return all;   // 'all'
+  }
+
+  // Which chip is lit. Picking a specific month or a span belongs to the panel,
+  // so both light "Custom" and leave it open.
+  function _rgChipOn(c){
+    const s = _rgSel;
+    if(c === 'month')  return s.k === 'month' && !s.m;
+    if(c === '90')     return s.k === 'days'  && s.n === 90;
+    if(c === 'all')    return s.k === 'all';
+    if(c === 'custom') return s.k === 'custom' || (s.k === 'month' && !!s.m);
+    return false;
+  }
+
+  function rgRenderRange(){
+    const el = document.getElementById('rgRange');
+    if(!el) return;
+    const total = rgHistoryRows().length;
+    // Nothing recorded means nothing to range over — a lone chip beside an
+    // empty table just looks broken. (`.chips:empty` drops the divider too.)
+    if(!total){ el.innerHTML = ''; rgRenderCustom(); return; }
+    // The chips are a CHOICE, so they carry no counts — "All 3" reads as though
+    // the 3 were part of what you are picking. How many days there are, and how
+    // many are on screen, is the header's job.
+    const opts = [['month','This month'], ['90','90 days'], ['all','All'], ['custom','Custom']];
+    el.innerHTML = opts.map(function(o){
+      // A window wider than the whole record is noise — except "All", which
+      // always makes sense, and "Custom", which is a door rather than a window.
+      if(o[0] === '90' && total <= 90) return '';
+      return '<button data-rgsel="' + o[0] + '"' + (_rgChipOn(o[0]) ? ' class="on"' : '') +
+             '>' + escHtml(o[1]) + '</button>';
+    }).join('');
+    rgRenderCustom();
+  }
+
+  // ── the custom-range panel ──────────────────────────────────────────────
+  // Two ways in, because they are different questions: "show me June" is one
+  // click, and "show me the 12th to the 20th" needs two dates.
+  function rgRenderCustom(){
+    const el = document.getElementById('rgCustom');
+    if(!el) return;
+    const open = _rgChipOn('custom');
+    el.style.display = open ? 'block' : 'none';
+    if(!open){ el.innerHTML = ''; return; }
+    const all = rgHistoryRows();
+    if(!all.length){ el.innerHTML = ''; return; }
+    const lo = all[0].date, hi = all[all.length-1].date;
+    const s = _rgSel;
+    const from = s.k === 'custom' ? (s.from || lo) : '';
+    const to   = s.k === 'custom' ? (s.to   || hi) : '';
+    const months = rgMonthsPresent();
+    el.innerHTML =
+      '<div class="fld"><label for="rgCustMonth">Whole month</label>' +
+        '<select id="rgCustMonth">' +
+          '<option value="">Choose a month…</option>' +
+          months.map(function(m){
+            return '<option value="' + escAttr(m) + '"' +
+                   (s.k === 'month' && s.m === m ? ' selected' : '') + '>' +
+                   escHtml(_rgMonthName(m)) + '</option>'; }).join('') +
+        '</select></div>' +
+      '<div class="or">or a specific span</div>' +
+      '<div class="pair">' +
+        '<div class="fld"><label for="rgCustFrom">From</label>' +
+          '<input type="date" id="rgCustFrom" min="' + escAttr(lo) + '" max="' + escAttr(hi) +
+          '" value="' + escAttr(from) + '"></div>' +
+        '<div class="fld"><label for="rgCustTo">To</label>' +
+          '<input type="date" id="rgCustTo" min="' + escAttr(lo) + '" max="' + escAttr(hi) +
+          '" value="' + escAttr(to) + '"></div>' +
+      '</div>';
+
+    const mSel = document.getElementById('rgCustMonth');
+    if(mSel) mSel.addEventListener('change', function(){
+      if(!this.value) return;
+      _rgSel = { k:'month', m:this.value };
+      rgRenderRange(); rgRenderRecHead(); rgRenderHistChart(); rgRenderHistory();
+    });
+    const f = document.getElementById('rgCustFrom'), t = document.getElementById('rgCustTo');
+    function applySpan(edited){
+      let a = f.value || lo, b = t.value || hi;
+      // Entered backwards is a slip, not an empty result. Move the END the
+      // operator did NOT just touch — rewriting the date they are still looking
+      // at is the confusing way to fix this.
+      if(a > b){
+        if(edited === 'from'){ b = a; t.value = b; }
+        else                 { a = b; f.value = a; }
+      }
+      _rgSel = { k:'custom', from:a, to:b };
+      rgRenderRange(); rgRenderRecHead(); rgRenderHistChart(); rgRenderHistory();
+    }
+    if(f) f.addEventListener('change', function(){ applySpan('from'); });
+    if(t) t.addEventListener('change', function(){ applySpan('to'); });
+  }
+
+  // ── the daily-record header ─────────────────────────────────────────────
+  function rgRenderRecHead(){
+    const el = document.getElementById('rgHistSub');
+    if(!el) return;
+    const total = rgHistoryRows().length;
+    if(!total){ el.textContent = 'No shift days recorded yet'; return; }
+    const rows = rgRangeRows();
+    const s = _rgSel;
+    const span = rows.length ? escHtml(_rgSpan(rows[0].date, rows[rows.length-1].date)) : '';
+    const days = '<b>' + rows.length + '</b> day' + (rows.length === 1 ? '' : 's');
+    let txt;
+    if(s.k === 'month'){
+      const name = escHtml(_rgMonthName(s.m || _rgCurMonth()));
+      txt = rows.length ? '<b>' + name + '</b> &nbsp;·&nbsp; ' + days + ' &nbsp;·&nbsp; ' + span
+                        : '<b>' + name + '</b> &nbsp;·&nbsp; nothing recorded in this month';
+    } else if(s.k === 'custom'){
+      txt = rows.length ? days + ' &nbsp;·&nbsp; ' + span
+                        : 'No recorded days in that range';
+    } else if(s.k === 'days'){
+      txt = 'Showing <b>' + rows.length + '</b> of ' + total + ' days &nbsp;·&nbsp; ' + span;
+    } else {
+      txt = 'All <b>' + total + '</b> recorded day' + (total === 1 ? '' : 's') +
+            ' &nbsp;·&nbsp; ' + span;
+    }
+    el.innerHTML = txt;
+  }
+
+  // Day-by-day trend. Same shape as the hourly chart but one point per day, and
+  // it shows only the series the signed-in role is allowed to see.
+  function rgHistChartSVG(rows, forPrint){
+    const side = forPrint ? 'both' : rgSide();
+    const series = [];
+    if(side === 'both' || side === 'petreco')
+      series.push({ key:'p', label:'PETRECO',  color:seriesColor('s1', forPrint) });
+    if(side === 'both' || side === 'rasgara')
+      series.push({ key:'r', label:'Ras Gara', color:seriesColor('s2', forPrint) });
+    if(rows.length < 2) return '';
+    const W = 760, H = 240, P = 44;
+    let maxY = 0, any = false;
+    rows.forEach(function(x){ series.forEach(function(sr){
+      const v = x[sr.key]; if(v != null){ any = true; if(v > maxY) maxY = v; } }); });
+    if(!any) return '';
+    maxY = maxY <= 0 ? 1 : maxY * 1.15;
+    const sx = i => P + (W - 2*P) * (rows.length === 1 ? 0.5 : i / (rows.length - 1));
+    const sy = v => H - P - (H - 2*P) * (v / maxY);
+    const axisCol = forPrint ? '#c7d3e0' : 'var(--border)';
+    const txtCol  = forPrint ? '#41566b' : 'var(--muted)';
+    const numFont = forPrint ? "'JetBrains Mono',ui-monospace,monospace" : 'var(--font-num)';
+    let grid = '';
+    for(let g = 0; g <= 4; g++){
+      const v = maxY * g / 4, y = sy(v);
+      grid += '<line x1="' + P + '" y1="' + y.toFixed(1) + '" x2="' + (W-P) + '" y2="' + y.toFixed(1) +
+        '" stroke="' + axisCol + '" stroke-width="1" stroke-dasharray="2,3"/>' +
+        '<text x="' + (P-6) + '" y="' + (y+3).toFixed(1) + '" text-anchor="end" fill="' + txtCol +
+        '" font-size="10" font-family="' + numFont + '">' + Math.round(v) + '</text>';
+    }
+    // At most ~7 date labels, or they collide once the range is long. The last
+    // day is always one of them — an axis that stops before the most recent
+    // reading is the thing people notice first.
+    let xax = '';
+    rgAxisMarks(rows.length, Math.max(1, Math.ceil(rows.length / 7))).forEach(function(i){
+      xax += '<text x="' + sx(i).toFixed(1) + '" y="' + (H-P+15) + '" text-anchor="middle" fill="' + txtCol +
+        '" font-size="9" font-family="' + numFont + '">' + escHtml(rows[i].date.slice(5)) + '</text>';
+    });
+    let paths = '';
+    series.forEach(function(sr){
+      let d = '', open = false, dots = '';
+      rows.forEach(function(x, i){
+        const v = x[sr.key];
+        if(v == null){ open = false; return; }
+        const px = sx(i), py = sy(v);
+        d += (open ? ' L' : ' M') + px.toFixed(1) + ' ' + py.toFixed(1);
+        open = true;
+        if(rows.length <= 45)
+          dots += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="2.4" fill="' + sr.color + '"/>';
+      });
+      if(d) paths += '<path d="' + d.trim() + '" fill="none" stroke="' + sr.color +
+        '" stroke-width="2" stroke-linejoin="round"/>' + dots;
+    });
+    const legend = series.map(function(sr){
+      return '<span class="rg-legend-i"><span class="sw" style="background:' + sr.color + ';"></span>' +
+             escHtml(sr.label) + '</span>'; }).join('');
+    return '<div style="overflow-x:auto;"><svg viewBox="0 0 ' + W + ' ' + H + '" ' +
+      'style="width:100%;min-width:320px;height:auto;' +
+      (forPrint ? 'background:#fff;' : 'background:var(--surface);border:1px solid var(--border);border-radius:12px;') +
+      'display:block;">' +
+      '<text x="' + (W/2) + '" y="16" text-anchor="middle" fill="' + txtCol +
+      '" font-size="11" font-family="' + numFont + '">Daily total M³/d</text>' +
+      grid + xax + paths +
+      '<line x1="' + P + '" y1="' + (H-P) + '" x2="' + (W-P) + '" y2="' + (H-P) + '" stroke="' + axisCol + '" stroke-width="1"/>' +
+      '<line x1="' + P + '" y1="' + P + '" x2="' + P + '" y2="' + (H-P) + '" stroke="' + axisCol + '" stroke-width="1"/>' +
+      '</svg></div><div class="rg-legend">' + legend + '</div>';
+  }
+
+  function rgRenderHistChart(){
+    const el = document.getElementById('rgHistChart');
+    if(!el) return;
+    el.innerHTML = rgHistChartSVG(rgRangeRows(), false);
+  }
+
   function rgRenderHistory(){
     const el = document.getElementById('rgHistory');
     if(!el) return;
-    const rows = rgHistoryRows();
+    const rows = rgRangeRows();
     if(!rows.length){ el.innerHTML = '<div class="rg-empty">No days recorded yet.</div>'; return; }
     const side = rgSide();
     let body = '';
@@ -1074,13 +1436,13 @@ document.addEventListener('DOMContentLoaded', function(){
     const COPY = {
       both:    { title:' Production Comparison',
                  sub:'Hourly PETRECO vs Ras Gara readings, losses & daily trend',
-                 hist:'Daily comparison history' },
+                 hist:'Daily record' },
       petreco: { title:' PETRECO — Daily Readings',
                  sub:'Enter the hourly PETRECO test-separator readings for each shift',
-                 hist:'Your recorded days' },
+                 hist:'Your daily record' },
       rasgara: { title:' Ras Gara — Daily Readings',
                  sub:'Enter the hourly Ras Gara plant readings for each shift',
-                 hist:'Your recorded days' }
+                 hist:'Your daily record' }
     }[side];
     // lastChild, not textContent: the heading holds an SVG icon as its first
     // child and textContent would delete it.
@@ -1090,9 +1452,17 @@ document.addEventListener('DOMContentLoaded', function(){
     if(sub) sub.textContent = COPY.sub;
     const acts = document.querySelector('#page-rasgara .rg-actions');
     if(acts) acts.style.display = (side === 'both') ? '' : 'none';
-    const histTitle = document.querySelector('#rgHistTitle span');
+    // The daily-record report is the PETRECO-vs-Ras-Gara comparison across
+    // days, so like the day report it is not offered to an operator.
+    const histActs = document.getElementById('rgHistActions');
+    // Admin only, and only once there is something to print.
+    if(histActs) histActs.style.display =
+      (side === 'both' && rgHistoryRows().length) ? '' : 'none';
+    const histTitle = document.getElementById('rgHistHeading');
     if(histTitle) histTitle.textContent = COPY.hist;
-    rgRenderTable(); rgRenderTotals(); rgRenderChart(); rgRenderHistory();
+    rgRenderTable(); rgRenderTotals(); rgRenderChart();
+    rgRenderRange(); rgRenderRecHead();
+    rgRenderHistChart(); rgRenderHistory();
     const sv = document.getElementById('rgSaved');
     const day = rgGetDay(_rgDate);
     if(sv) sv.textContent = day.updatedAt
@@ -1181,26 +1551,60 @@ document.addEventListener('DOMContentLoaded', function(){
     } catch(err){
       console.error('[RasGara] save failed', err);
       showToast('Could not save to cloud: ' + (err.code || err.message), true);
+      rgCloudError(err);
     }
   }
 
   // ── cloud sync (same cache-version pattern as the other datasets) ──────
+  // The footer line is the ONLY thing telling anyone whether this app is
+  // talking to Firestore, so every outcome has to reach it — including the
+  // healthy ones. It used to be written in exactly one place, after a
+  // successful save, which meant a correctly-connected app sat on
+  // "Connecting…" until somebody typed a reading, and a rules failure looked
+  // identical to a slow network. If you add a path through here, give it a
+  // status.
+  function rgCloud(status, text){
+    if(typeof updateCloudStatus === 'function') updateCloudStatus(status, text);
+  }
+  function rgCloudIdle(){
+    const n = Object.keys(RG_DAYS).length;
+    if(!navigator.onLine){ rgCloud('offline', 'Offline — showing ' + n + ' saved day(s)'); return; }
+    rgCloud('synced', n ? 'Cloud connected · ' + n + ' day(s)' : 'Cloud connected · no readings yet');
+  }
+  function rgCloudError(err){
+    const code = (err && (err.code || err.message)) || 'unknown';
+    // permission-denied is the one that actually happens, and it has exactly
+    // one cause worth naming: firestore.rules was never published.
+    rgCloud('error', code === 'permission-denied'
+      ? 'Cloud refused access — publish firestore.rules'
+      : 'Cloud error: ' + code);
+    console.error('[Firestore]', err);
+  }
   function rgStartListener(){
     rgStopListener();
-    if(typeof db === 'undefined' || typeof FIREBASE_OK === 'undefined' || !FIREBASE_OK) return;
+    if(typeof db === 'undefined' || typeof FIREBASE_OK === 'undefined' || !FIREBASE_OK){
+      rgCloud('error', (typeof window.__BOOT_ERROR__ === 'string' && window.__BOOT_ERROR__)
+        ? 'No cloud: ' + window.__BOOT_ERROR__ : 'No cloud connection');
+      return;
+    }
+    rgCloud('syncing', 'Connecting…');
     _rgMetaUnsub = db.collection(RG_META.col).doc(RG_META.doc).onSnapshot(async function(doc){
       if(doc.metadata && doc.metadata.hasPendingWrites && !(doc.data() && doc.data().updatedAt)) return;
-      if(!doc.exists){ _rgFirstSnap = false; return; }
+      // No meta document is the NORMAL state of a brand-new project, not a
+      // failure — the connection is fine, there is simply nothing in it yet.
+      // Saying so is what tells you the difference between "empty" and "broken".
+      if(!doc.exists){ _rgFirstSnap = false; rgCloudIdle(); rgRenderAll(); return; }
       const data = doc.data() || {};
       const ts = data.updatedAt ? data.updatedAt.toMillis() : 0;
       const isFirst = _rgFirstSnap; _rgFirstSnap = false;
       if(!isFirst && ts === _rgLastTs) return;
       _rgLastTs = ts;
-      if(_rgSkipNext){ _rgSkipNext = false; setSyncedVersion(RG_VERK, ts); return; }
+      if(_rgSkipNext){ _rgSkipNext = false; setSyncedVersion(RG_VERK, ts); rgCloudIdle(); return; }
       if(isCacheCurrent(RG_VERK, ts, Object.keys(RG_DAYS).length > 0)){
         console.log('[Firestore] Ras Gara already current (v' + ts + ') — skipped collection read');
-        rgRenderAll(); return;
+        rgRenderAll(); rgCloudIdle(); return;
       }
+      rgCloud('syncing', 'Loading readings…');
       try {
         const snap = await db.collection(RG_COL).get();
         const obj = {};
@@ -1221,9 +1625,10 @@ document.addEventListener('DOMContentLoaded', function(){
         rgSaveLocal();
         setSyncedVersion(RG_VERK, ts);
         rgRenderAll();
+        rgCloudIdle();
         if(!isFirst) showToast('Readings synced from cloud');
-      } catch(err){ console.error('[Firestore] Ras Gara fetch failed', err); }
-    }, function(err){ console.error('[Firestore] Ras Gara listener error', err); });
+      } catch(err){ rgCloudError(err); }
+    }, function(err){ rgCloudError(err); });
   }
   function rgStopListener(){
     if(_rgMetaUnsub){ _rgMetaUnsub(); _rgMetaUnsub = null; }
@@ -1231,6 +1636,13 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   window.startRasGaraListener = rgStartListener;
   window.stopRasGaraListener  = rgStopListener;
+
+  // Losing the network does not fire the listener's error callback — Firestore
+  // just goes quiet and keeps serving its local cache, which is the behaviour
+  // we want but leaves the footer claiming a live connection. These two events
+  // are what make the line honest offline.
+  window.addEventListener('offline', function(){ if(currentUser) rgCloudIdle(); });
+  window.addEventListener('online',  function(){ if(currentUser) rgCloudIdle(); });
 
   // ── wiring ──────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function(){
@@ -1272,10 +1684,46 @@ document.addEventListener('DOMContentLoaded', function(){
       rgRenderAll();
       document.getElementById('page-rasgara').scrollIntoView({behavior:'smooth', block:'start'});
     });
-    const pb = document.getElementById('rgPrintBtn');
-    if(pb) pb.addEventListener('click', function(){ rgPrintReport(); });
-    const mb = document.getElementById('rgMailBtn');
-    if(mb) mb.addEventListener('click', function(){ rgEmailReport(); });
+    // Every one of these is async or can throw, and a rejected promise from a
+    // click handler is COMPLETELY silent — no toast, no console entry the
+    // operator would ever see. That is how "Send by e-mail" spent a release
+    // doing nothing at all: it threw on a missing helper after the PDF was
+    // built and the failure went nowhere. Route them all through one wrapper
+    // so a button can never again look dead.
+    function _bind(id, fn, label){
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.addEventListener('click', function(){
+        try {
+          const r = fn();
+          if(r && typeof r.catch === 'function') r.catch(function(err){
+            console.error('[RasGara] ' + label + ' failed', err);
+            showToast(label + ' failed: ' + ((err && (err.message || err.code)) || 'unknown'), true);
+          });
+        } catch(err){
+          console.error('[RasGara] ' + label + ' failed', err);
+          showToast(label + ' failed: ' + ((err && (err.message || err.code)) || 'unknown'), true);
+        }
+      });
+    }
+    _bind('rgPrintBtn',     rgPrintReport,  'Print');
+    _bind('rgMailBtn',      rgEmailReport,  'Send by e-mail');
+    _bind('rgHistPrintBtn', rgPrintHistory, 'Print daily record');
+    // Delegated: the range chips are re-rendered on every pass, so binding each
+    // button directly would leak listeners.
+    const rangeEl = document.getElementById('rgRange');
+    if(rangeEl) rangeEl.addEventListener('click', function(e){
+      const b = e.target.closest('button[data-rgsel]');
+      if(!b) return;
+      const k = b.getAttribute('data-rgsel');
+      // "Custom" opens the panel without changing what is shown yet — the
+      // selection only moves once a month or a date is actually picked.
+      if(k === 'custom'){ if(!_rgChipOn('custom')) _rgSel = { k:'custom' }; }
+      else if(k === 'month') _rgSel = { k:'month' };
+      else if(k === 'all')   _rgSel = { k:'all' };
+      else                   _rgSel = { k:'days', n:parseInt(k,10) };
+      rgRenderRange(); rgRenderRecHead(); rgRenderHistChart(); rgRenderHistory();
+    });
   });
 
   // Repaint the calculated cells + totals + chart without touching inputs.
@@ -1361,7 +1809,24 @@ document.addEventListener('DOMContentLoaded', function(){
 '.foot{margin-top:18px;font-size:10px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:7px;}' +
 '.rg-legend{display:flex;gap:14px;justify-content:center;font-size:10px;color:#475569;margin-top:4px;}' +
 '.rg-legend .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;}' +
-'@media print{body{padding:0;} .cards{break-inside:avoid;} table{break-inside:auto;}}' +
+// The whole report is meant to be ONE A4 page — a shift comparison that runs
+// onto a second sheet is two things to staple and one to lose. It does not fit
+// at screen sizes: 24 hourly rows plus the cards and the chart come to roughly
+// 1150px against about 1050px of printable A4, so print gets its own tighter
+// set of numbers rather than a scale hack.
+'@page{size:A4 portrait;margin:9mm;}' +
+'@media print{' +
+  'body{padding:0;}' +
+  'h1{font-size:17px;} h2{font-size:12px;margin:13px 0 6px;}' +
+  '.sub{font-size:10.5px;margin-bottom:10px;}' +
+  '.cards{margin:11px 0;gap:9px;break-inside:avoid;}' +
+  '.card{padding:8px 10px;} .card .v{font-size:17px;} .card .k,.card .s{font-size:9.5px;}' +
+  'table{font-size:11px;break-inside:auto;} th,td{padding:3px 5px;}' +
+  'th{font-size:9px;}' +
+  'svg{max-height:250px;}' +
+  '.foot{margin-top:12px;padding-top:6px;font-size:9.5px;}' +
+  'thead{display:table-header-group;} tr{break-inside:avoid;}' +
+'}' +
 '</style></head><body>' +
 '<h1>Sinai Field — Production Comparison</h1>' +
 '<div class="sub">Shift ' + rgHourLabel(0) + ' ' + escHtml(day.date) + ' → ' +
@@ -1372,9 +1837,9 @@ document.addEventListener('DOMContentLoaded', function(){
   '<div class="card r"><div class="k">Ras Gara total</div><div class="v">' + rgFmt(c.rTotal,1) + ' m³</div><div class="s">' + rgFmt(c.rBbl,0) + ' bbl/d</div></div>' +
   '<div class="card d ' + rgDiffClass(c.loss, 'neg', 'pos') + '">' +
      '<div class="k">Difference</div><div class="v">' +
-     (c.loss == null ? '—' : (c.loss > 0 ? '+' : '−') + rgFmt(Math.abs(c.loss),1) + ' m³') + '</div>' +
-     '<div class="s">' + rgFmt(Math.abs(c.lossBbl),0) + ' bbl/d' +
-     (c.lossPct == null ? '' : ' · ' + rgFmt(Math.abs(c.lossPct),1) + '%') +
+     (c.loss == null ? '—' : (c.loss > 0 ? '+' : '−') + rgAbs(c.loss,1) + ' m³') + '</div>' +
+     '<div class="s">' + rgAbs(c.lossBbl,0) + ' bbl/d' +
+     (c.lossPct == null ? '' : ' · ' + rgAbs(c.lossPct,1) + '%') +
      (c.loss == null ? '' : (c.loss > 0 ? ' less at Ras Gara' : ' more at Ras Gara')) + '</div></div>' +
 '</div>' +
 '<h2>Hourly comparison</h2>' +
@@ -1389,6 +1854,86 @@ document.addEventListener('DOMContentLoaded', function(){
   (day.updatedBy ? ' · last data entry by ' + escHtml(day.updatedBy) : '') +
   '<br>Powered by Sherif Morshed</div>' +
 '</body></html>';
+  }
+
+  // ── the daily-record report ──────────────────────────────────────────────
+  // Its own document rather than a section of the day report: this one covers a
+  // RANGE of days, and the two are printed for different reasons.
+  function rgHistReportHTML(rows){
+    // The three headline numbers are computed over the days BOTH sides reported.
+    // Summing each column over every day instead would compare 116 Ras Gara days
+    // against 114 PETRECO ones and book the two missing sheets as loss.
+    const withBoth = rows.filter(function(x){ return x.p != null && x.r != null; });
+    const sum = k => withBoth.reduce(function(a,x){ return a + x[k]; }, 0);
+    const pT = sum('p'), rT = sum('r'), dT = pT - rT;
+    const bad = withBoth.filter(function(x){ return rgDiffIsBad(x.diff); }).length;
+    const skipped = rows.length - withBoth.length;
+    let body = '';
+    rows.slice().reverse().forEach(function(x){
+      const cls = x.diff == null ? '' : (rgDiffIsBad(x.diff) ? ' class="neg"' : ' class="pos"');
+      body += '<tr><td>' + escHtml(x.date) + '</td><td>' + rgFmt(x.p,1) + '</td>' +
+              '<td>' + rgFmt(x.r,1) + '</td><td' + cls + '>' + rgFmt(x.diff,1) + '</td></tr>';
+    });
+    return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+'<title>Sinai Field — Daily Record ' + escHtml(rows[0].date) + ' to ' + escHtml(rows[rows.length-1].date) + '</title>' +
+'<style>' +
+'*{box-sizing:border-box;margin:0;padding:0;}' +
+'body{font-family:Inter,system-ui,sans-serif;color:#16232f;padding:26px 30px;background:#fff;}' +
+'h1{font-size:20px;font-weight:800;letter-spacing:-.02em;}' +
+'.sub{color:#5d7286;font-size:12.5px;margin:4px 0 18px;}' +
+'h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#5d7286;margin:22px 0 8px;}' +
+'.kpis{display:flex;gap:12px;flex-wrap:wrap;}' +
+'.card{flex:1;min-width:150px;border:1px solid #dbe4ee;border-radius:10px;padding:11px 13px;}' +
+'.card .k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#5d7286;}' +
+'.card .v{font-size:21px;font-weight:800;margin-top:3px;}' +
+'.card .s{font-size:11px;color:#5d7286;margin-top:2px;}' +
+'.card.p .v{color:#0369a1;} .card.r .v{color:#b45309;}' +
+'.card.d.neg .v{color:#b91c1c;} .card.d.pos .v{color:#15803d;}' +
+'.card.d.neg{background:#fdf1f2;border-color:#b91c1c;} .card.d.pos{background:#f0f8f3;border-color:#15803d;}' +
+'table{width:100%;border-collapse:collapse;font-family:ui-monospace,monospace;font-size:11.5px;}' +
+'th{background:#eef3f8;color:#41566b;font-size:10px;letter-spacing:.5px;text-transform:uppercase;' +
+'padding:6px 8px;border-bottom:1.5px solid #dbe4ee;text-align:center;}' +
+'td{padding:5px 8px;text-align:center;border-bottom:1px solid #eef3f8;}' +
+'td:first-child{text-align:left;}' +
+'td.neg{color:#b91c1c;font-weight:700;} td.pos{color:#15803d;font-weight:700;}' +
+'.rg-legend{display:flex;gap:14px;justify-content:center;font-size:10px;color:#475569;margin-top:4px;}' +
+'.rg-legend .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;}' +
+'.foot{margin-top:20px;padding-top:11px;border-top:1px solid #dbe4ee;font-size:10.5px;color:#5d7286;}' +
+'@media print{body{padding:0;} thead{display:table-header-group;} tr{break-inside:avoid;}}' +
+'</style></head><body>' +
+'<h1>Sinai Field — Daily Record</h1>' +
+'<div class="sub">' + escHtml(rows[0].date) + ' to ' + escHtml(rows[rows.length-1].date) +
+  ' &nbsp;·&nbsp; ' + rows.length + ' day(s) &nbsp;·&nbsp; PETRECO test separator T.B. 6-2 vs Ras Gara plant' +
+  (skipped ? ' &nbsp;·&nbsp; totals exclude ' + skipped + ' day(s) with only one side reporting' : '') +
+  '</div>' +
+'<div class="kpis">' +
+  '<div class="card p"><div class="k">PETRECO total</div><div class="v">' + rgFmt(pT,1) + ' m³</div>' +
+    '<div class="s">' + rgFmt(pT*M3_TO_BBL,0) + ' bbl</div></div>' +
+  '<div class="card r"><div class="k">Ras Gara total</div><div class="v">' + rgFmt(rT,1) + ' m³</div>' +
+    '<div class="s">' + rgFmt(rT*M3_TO_BBL,0) + ' bbl</div></div>' +
+  '<div class="card d ' + (!withBoth.length ? '' : dT < 0 ? 'neg' : 'pos') + '"><div class="k">Difference</div>' +
+    '<div class="v">' + (!withBoth.length ? '—' :
+      (dT < 0 ? '−' : '+') + rgFmt(Math.abs(dT),1) + ' m³') + '</div>' +
+    '<div class="s">' + (!withBoth.length ? 'no day has both sides' :
+      rgFmt(Math.abs(dT)*M3_TO_BBL,0) + ' bbl · ' + bad + ' of ' +
+      withBoth.length + ' day(s) over') + '</div></div>' +
+'</div>' +
+'<h2>Daily trend</h2>' + rgHistChartSVG(rows, true) +
+'<h2>Day by day</h2>' +
+'<table><thead><tr><th>Date</th><th>PETRECO m³/d</th><th>Ras Gara m³/d</th><th>Difference</th></tr></thead>' +
+'<tbody>' + body + '</tbody></table>' +
+'<div class="foot">Generated by PETROBEL Sinai Field on ' + new Date().toLocaleString('en-GB') +
+'<br>Powered by Sherif Morshed</div>' +
+'</body></html>';
+  }
+
+  function rgPrintHistory(){
+    const rows = rgRangeRows();
+    if(!rows.length){ showToast('No days to print yet', true); return; }
+    const w = window.open('', '_blank');
+    if(!w){ showToast('Pop-up blocked — allow pop-ups to print', true); return; }
+    w.document.open(); w.document.write(rgHistReportHTML(rows)); w.document.close();
+    setTimeout(function(){ try { w.focus(); w.print(); } catch(e){} }, 400);
   }
 
   function rgOpenReportWindow(){
@@ -1462,6 +2007,64 @@ document.addEventListener('DOMContentLoaded', function(){
     } finally { host.remove(); }
   }
 
+  // ── handing the finished PDF to the user ────────────────────────────────
+  // This is a sheet with buttons rather than something automatic, and that is
+  // deliberate. Building the PDF takes seconds, and BOTH ways of delivering it
+  // need a live user gesture:
+  //
+  //   · navigator.share() throws NotAllowedError without transient activation;
+  //   · window.open() is blocked as a pop-up for the same reason.
+  //
+  // The tap that started the build is long spent by the time the blob exists,
+  // so anything fired from here is refused — silently, on a phone. Putting the
+  // delivery behind a fresh tap is what makes it work at all. It also lets
+  // whoever is holding the phone choose share, save or Gmail, which the old
+  // automatic path decided for them.
+  function rgOfferPdf(blob, fname, subject, body){
+    const sheet = document.getElementById('pdfSheet');
+    const row   = document.getElementById('pdfSheetRow');
+    const nameEl= document.getElementById('pdfSheetName');
+    if(!sheet || !row){ _downloadBlob(blob, fname); return; }   // markup missing: still deliver
+    nameEl.textContent = fname;
+    const file = new File([blob], fname, { type:'application/pdf' });
+    const canShare = !!(navigator.canShare && navigator.share && navigator.canShare({ files:[file] }));
+    const close = function(){ sheet.classList.remove('show'); row.innerHTML = ''; };
+
+    const btns = [];
+    if(canShare) btns.push(['i-mail', 'Share / e-mail', 'primary', async function(){
+      try { await navigator.share({ files:[file], title:subject, text:body }); close(); }
+      catch(err){
+        if(err && err.name === 'AbortError') return;            // backed out; leave the sheet up
+        console.warn('[RasGara] share failed', err);
+        showToast('Sharing was refused — use Save PDF instead', true);
+      }
+    }]);
+    btns.push(['i-print', 'Save PDF', canShare ? '' : 'primary', function(){
+      _downloadBlob(blob, fname);
+      showToast('PDF saved to your downloads');
+      close();
+    }]);
+    btns.push(['i-mail', 'Open Gmail', '', function(){
+      // Inside the click, so it is a user-initiated navigation and not a pop-up.
+      window.open('https://mail.google.com/mail/?view=cm&fs=1&su=' +
+        encodeURIComponent(subject) + '&body=' + encodeURIComponent(body), '_blank', 'noopener');
+      showToast('Attach the saved PDF to the draft');
+    }]);
+    btns.push(['', 'Cancel', '', close]);
+
+    row.innerHTML = '';
+    btns.forEach(function(b){
+      const el = document.createElement('button');
+      el.className = 'rg-btn' + (b[2] === 'primary' ? ' rg-btn-primary' : '');
+      el.innerHTML = (b[0] ? '<svg class="ico" aria-hidden="true"><use href="#' + b[0] + '"/></svg> ' : '') +
+                     escHtml(b[1]);
+      el.addEventListener('click', b[3]);
+      row.appendChild(el);
+    });
+    sheet.classList.add('show');
+    sheet.onclick = function(e){ if(e.target === sheet) close(); };
+  }
+
   async function rgEmailReport(){
     const day = rgGetDay(_rgDate);
     const fname = 'Ras_Gara_Comparison_' + day.date + '.pdf';
@@ -1470,27 +2073,13 @@ document.addEventListener('DOMContentLoaded', function(){
     showToast('Building PDF…');
     let blob;
     try { blob = await rgMakePdfBlob(); }
-    catch(err){ console.error('[RasGara] PDF failed', err); showToast('Could not build the PDF', true); return; }
-
-    // Preferred path: hand the PDF to the phone's share sheet, where Gmail and
-    // Outlook appear with the file already attached.
-    const file = new File([blob], fname, { type:'application/pdf' });
-    if(navigator.canShare && navigator.canShare({ files:[file] }) && navigator.share){
-      try {
-        await navigator.share({ files:[file], title:subject, text:body });
-        return;
-      } catch(err){
-        if(err && err.name === 'AbortError') return;   // user backed out
-        console.warn('[RasGara] share failed, falling back', err);
-      }
+    catch(err){
+      console.error('[RasGara] PDF failed', err);
+      showToast('Could not build the PDF: ' + ((err && err.message) || 'unknown'), true);
+      return;
     }
-    // Fallback (desktop): download the PDF, then open a Gmail compose window
-    // with the subject and summary already filled in, ready to attach it.
-    _downloadBlob(blob, fname);
-    const gmail = 'https://mail.google.com/mail/?view=cm&fs=1&su=' +
-                  encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-    setTimeout(function(){ window.open(gmail, '_blank', 'noopener'); }, 600);
-    showToast('PDF downloaded — attach it to the Gmail draft that just opened');
+    if(!blob || !blob.size){ showToast('The PDF came out empty — nothing to send', true); return; }
+    rgOfferPdf(blob, fname, subject, body);
   }
 
 
@@ -1501,6 +2090,7 @@ document.addEventListener('DOMContentLoaded', function(){
                   START:RG_START_HOUR, HOURS:RG_HOURS, BBL:M3_TO_BBL,
                   fmt:rgFmt, num:rgNum, rowDate:rgRowDate, today:rgToday,
                   chartSVG:rgChartSVG, reportHTML:rgReportHTML, makePdfBlob:rgMakePdfBlob,
+                  rangeRows:rgRangeRows, histReportHTML:rgHistReportHTML,
                   setDate:function(d){ _rgDate = d; rgRenderAll(); } };
 })();
 </script>
