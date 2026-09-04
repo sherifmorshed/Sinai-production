@@ -17,8 +17,9 @@ service cloud.firestore {
     //  then closed) applies, which is either wide open or completely broken.
     //
     //  Keep the addresses below in step with ADMIN_EMAILS / PLANT_EMAILS /
-    //  PETRECO_EMAILS in index.html. They are two halves of the same decision,
-    //  and drift shows up as "the button is there but saving fails".
+    //  PETRECO_EMAILS / TB_EMAILS in index.html. They are two halves of the
+    //  same decision, and drift shows up as "the button is there but saving
+    //  fails".
 
     // PETROBEL. Reads and writes both sides, and is the only role offered the
     // chart, the printed report and the e-mailed PDF.
@@ -39,7 +40,46 @@ service cloud.firestore {
           && request.auth.token.email in ['petreco@petrobel.org'];
     }
 
-    // Anyone allowed to record readings at all.
+    // ── Tank batteries ────────────────────────────────────────────
+    //
+    //  One account per BATTERY. The map must match TB_ACCOUNTS in index.html.
+    //  get() with a default is used deliberately: indexing a missing key in
+    //  this language errors, and an unknown address should be "no battery",
+    //  not a rule that blows up.
+    function tbBattery() {
+      return request.auth == null ? '' :
+        {
+          'tb10-1@petrobel.org': 'tb10_1',
+          'tb6-1@petrobel.org':  'tb6_1',
+          'tb6-2@petrobel.org':  'tb6_2',
+          'tb8-1@petrobel.org':  'tb8_1',
+          'tb8-2@petrobel.org':  'tb8_2'
+        }.get(request.auth.token.email, '');
+    }
+
+    function isTankBattery() {
+      return tbBattery() != '';
+    }
+
+    // Does this session own the battery a document belongs to? Checked against
+    // BOTH the stored data and the incoming write, so an operator can neither
+    // read someone else's readings nor create a document claiming to be
+    // another battery's.
+    function tbOwnsExisting() {
+      return isTankBattery() && resource.data.battery == tbBattery();
+    }
+    function tbOwnsIncoming() {
+      return isTankBattery() && request.resource.data.battery == tbBattery();
+    }
+
+    // Anyone allowed to record PETRECO / Ras Gara readings.
+    //
+    // isTankBattery() is deliberately NOT in here. The tank battery operators
+    // are not to see the comparison at all, and hiding a tab is not access
+    // control — anyone can open a browser console. Keeping them out of this
+    // function is what actually stops them reading rasGara. If you ever add a
+    // role that should see both, add it to both functions explicitly rather
+    // than widening this one.
     function isOperator() {
       return isAdmin() || isPlant() || isPetreco();
     }
@@ -76,6 +116,38 @@ service cloud.firestore {
     match /rasGaraMeta/{docId} {
       allow read:  if isOperator();
       allow write: if isOperator();
+    }
+
+    // ── Tank battery readings: one document PER BATTERY per day ───
+    //
+    //  Document id is `2026-08-14__tb6_2` and the battery is ALSO stored as a
+    //  field, because that is what a rule and a query can both match on.
+    //
+    //  This is why the day was split into five documents. While a whole shift
+    //  was one document a rule could only allow or deny the lot, so "each
+    //  battery sees only its own" could not be enforced here at all — it would
+    //  have been a curtain on the screen and nothing more.
+    //
+    //  Shift day is 05:00 → 05:00 and the date is the day the shift STARTS.
+    //  Rows are a map keyed "0".."8" = { s, w }; never an array, because an
+    //  array is one atomic value and writing it replaces the whole thing.
+    //
+    //  An operator's client MUST query with .where('battery','==', his own).
+    //  An unfiltered query is rejected outright rather than trimmed — that is
+    //  how Firestore evaluates queries, and it is the behaviour we want.
+    match /tbReadings/{docId} {
+      allow read:   if isAdmin() || tbOwnsExisting();
+      allow create: if isAdmin() || tbOwnsIncoming();
+      allow update: if isAdmin() || (tbOwnsExisting() && tbOwnsIncoming());
+      allow delete: if isAdmin();
+    }
+
+    // Version stamp, watched the way rasGaraMeta is. Readable by every tank
+    // battery operator: it carries the list of dates that have readings and no
+    // readings themselves, so it leaks nothing an operator should not see.
+    match /tbReadingsMeta/{docId} {
+      allow read:  if isAdmin() || isTankBattery();
+      allow write: if isAdmin() || isTankBattery();
     }
 
     // ── Deny everything else ──────────────────────────────────────
