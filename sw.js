@@ -21,6 +21,10 @@ const STATIC_ASSETS = [
   './firebase-app-compat.js',
   './firebase-firestore-compat.js',
   './firebase-auth-compat.js'
+  // NOT precached: './xlsx.full.min.js'. It is ~860 KB, only an admin importing
+  // a workbook ever needs it, and it is fetched on demand when the import panel
+  // is used. Precaching it would push it onto every operator's phone for a
+  // feature they cannot open. It is still DEPLOYED — just not stored offline.
 ];
 
 // Live data and auth traffic — never intercepted.

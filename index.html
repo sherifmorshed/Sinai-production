@@ -466,6 +466,22 @@ table.tb-tbl .tb-din{max-width:88px;}
 .tb-days .tag{font-size:9px;color:var(--gold);border:1px solid var(--gold);border-radius:3px;
   padding:0 3px;font-weight:700;}
 .tb-days .tag.imp{color:var(--muted);border-color:var(--border);}
+/* Import panel. Admin only, and used perhaps once a month, so it sits at the
+   bottom of the page and stays quiet until it is given a file. */
+.tb-imp{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-top:10px;}
+.tb-imp p{font-size:12.5px;color:var(--muted);margin-bottom:11px;line-height:1.55;}
+.tb-imp label.rg-btn{display:inline-flex;}
+.tb-imp .fname{font-size:12px;color:var(--muted);margin-left:10px;font-family:var(--font-num);}
+.tb-imp .sum{margin-top:13px;font-size:13px;}
+.tb-imp .sum b{color:var(--text);}
+.tb-imp .warn{border:1px solid var(--red);background:rgba(220,38,38,.08);color:var(--red);
+  border-radius:8px;padding:8px 11px;margin-top:9px;font-size:12px;line-height:1.5;}
+.tb-imp .note2{border:1px solid var(--gold);background:rgba(202,138,4,.08);color:var(--gold);
+  border-radius:8px;padding:8px 11px;margin-top:9px;font-size:12px;line-height:1.5;}
+.tb-imp select{background:var(--surface);border:1.5px solid var(--border);border-radius:9px;
+  color:var(--text);padding:8px 10px;font-family:inherit;font-size:13px;margin-right:9px;}
+.tb-imp .prog{font-family:var(--font-num);font-size:12px;color:var(--muted);margin-top:9px;}
 .tb-heat{overflow-x:auto;margin-top:10px;}
 /* Sized to the page rather than to its contents: 90% of the available width,
    centred, so the figures are readable across a room. */
@@ -509,6 +525,7 @@ table.tb-tbl .tb-din{max-width:88px;}
 <symbol id="i-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/></g></symbol>
 <symbol id="i-warn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19.5H3z"/><path d="M12 9.5v4.2"/><path d="M12 16.8h.01"/></g></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6V5"/><path d="M12 19v2.4"/><path d="M2.6 12H5"/><path d="M19 12h2.4"/><path d="m5.6 5.6 1.7 1.7"/><path d="m16.7 16.7 1.7 1.7"/><path d="m18.4 5.6-1.7 1.7"/><path d="m7.3 16.7-1.7 1.7"/></g></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></g></symbol>
 <symbol id="i-tank" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="4" y="7" width="7.5" height="13" rx="1.2"/><rect x="14" y="11" width="6" height="9" rx="1.2"/><path d="M4 11h7.5"/><path d="M14 14.5h6"/><path d="M7.75 7V4.5"/><path d="M6 4.5h3.5"/></g></symbol>
 <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4 8.5 8.5 0 1 0 20 14.2z"/></g></symbol>
 </defs></svg>
@@ -661,6 +678,19 @@ table.tb-tbl .tb-din{max-width:88px;}
 
       <div class="rg-sec-title">Monitoring Production real-time</div>
       <div id="tbHeat"></div>
+
+      <div class="rg-sec-title">Import daily history</div>
+      <div class="tb-imp" id="tbImport">
+        <p>Load the daily scanner-reading workbook to bring past days in as
+           <b>daily figures</b> — a day total per battery, with no three-hour
+           readings behind it. Days that already have real readings keep them.</p>
+        <label class="rg-btn rg-btn-primary" for="tbFile">
+          <svg class="ico" aria-hidden="true"><use href="#i-upload"/></svg> Choose workbook…
+        </label>
+        <input type="file" id="tbFile" accept=".xlsx,.xlsm,.xls,.csv" style="display:none;">
+        <span class="fname" id="tbFileName"></span>
+        <div id="tbImpOut"></div>
+      </div>
 
     <div id="tbHistWrap" style="display:none;">
       <div class="rg-rec-head">
@@ -3614,6 +3644,267 @@ document.addEventListener('DOMContentLoaded', function(){
     el.innerHTML = html || '<div class="rg-empty">No production recorded for this shift.</div>';
   }
 
+  // ── importing the daily scanner workbook ────────────────────────────────
+  // Columns are found by their HEADINGS, not by position. The sheet's layout
+  // will drift — a column inserted, a block moved — and an import that trusts
+  // column L will one day file the wrong figures under the right battery
+  // without complaining. Matching the heading fails loudly instead.
+  //
+  // The headings are stacked across several merged rows, so each column is
+  // reduced to the joined text of every header row above the DATE row, and the
+  // battery is identified from that.
+  function tbNorm(v){
+    return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().toUpperCase();
+  }
+  function tbParseHistory(grid){
+    const warn = [];
+    // The header row is the one whose first cells contain DATE.
+    let hRow = -1, dCol = -1;
+    for(let r = 0; r < Math.min(30, grid.length) && hRow < 0; r++){
+      for(let c = 0; c < Math.min(8, (grid[r]||[]).length); c++){
+        if(tbNorm(grid[r][c]) === 'DATE'){ hRow = r; dCol = c; break; }
+      }
+    }
+    if(hRow < 0) return { error:'No DATE column found — is this the daily scanner sheet?' };
+
+    // Stack every heading above and including the DATE row, per column.
+    const width = grid.slice(0, hRow + 1).reduce(function(m, r){
+      return Math.max(m, (r||[]).length); }, 0);
+    const stack = [];
+    for(let c = 0; c < width; c++){
+      let t = '';
+      for(let r = 0; r <= hRow; r++) t += ' ' + tbNorm((grid[r]||[])[c]);
+      stack.push(t.replace(/\s+/g, ' ').trim());
+    }
+
+    // Battery columns. TOTAL is excluded explicitly: a total column carries the
+    // same battery names in the block above it and would otherwise match.
+    const want = [
+      { id:'tb6_1',  re:/(^| )6\s*\/\s*1( |$|,)/ },
+      { id:'tb6_2',  re:/(^| )6\s*\/\s*2( |$|,)/ },
+      { id:'tb8_1',  re:/(^| )8\s*\/\s*1( |$|,)/ },
+      { id:'tb8_2',  re:/(^| )8\s*\/\s*2( |$|,)/ },
+      // 10/1 appears twice — the metered column and a gas column. NET OIL is
+      // what distinguishes the one we want.
+      { id:'tb10_1', re:/10\s*\/\s*1/, also:/NET OIL/ }
+    ];
+    const col = {}, unmatched = [];
+    want.forEach(function(w){
+      let found = -1;
+      for(let c = 0; c < stack.length; c++){
+        const t = stack[c];
+        if(t.indexOf('TOTAL') !== -1) continue;
+        if(!w.re.test(t)) continue;
+        if(w.also && !w.also.test(t)) continue;
+        found = c; break;
+      }
+      if(found < 0) unmatched.push(w.id); else col[w.id] = found;
+    });
+    if(unmatched.length)
+      return { error:'These batteries have no column in the sheet: ' +
+                     unmatched.join(', ') + '. The headings may have changed.' };
+
+    // A TOTAL column, if there is one, is used only as a cross-check.
+    let totCol = -1;
+    for(let c = 0; c < stack.length; c++)
+      if(/TOTAL GROSS/.test(stack[c])){ totCol = c; break; }
+
+    function toDate(v){
+      // Duck-typed, not `instanceof Date`: the workbook reader may hand back a
+      // Date built in another realm, where instanceof is false for a perfectly
+      // good date.
+      if(v && typeof v.getFullYear === 'function' && !isNaN(v.getTime())) return _isoDate(v);
+      if(typeof v === 'number' && v > 20000 && v < 80000){
+        // Excel serial: days since 1899-12-30.
+        return _isoDate(new Date(Date.UTC(1899, 11, 30) + v * 86400000));
+      }
+      const s2 = String(v || '').trim();
+      const m = s2.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? m[1] + '-' + m[2] + '-' + m[3] : null;
+    }
+
+    const days = [], seen = {};
+    for(let r = hRow + 1; r < grid.length; r++){
+      const row = grid[r] || [];
+      const date = toDate(row[dCol]);
+      if(!date) continue;
+      if(seen[date]){ warn.push('Duplicate row for ' + date + ' — the later one was used.'); }
+      const vals = {}; let any = false, missing = [];
+      TB_LIST.forEach(function(b){
+        const raw = row[col[b.id]];
+        const n = (raw === '' || raw == null) ? null : Number(raw);
+        if(n == null || isNaN(n)){ missing.push(b.name); return; }
+        vals[b.id] = n; any = true;
+      });
+      if(!any) continue;
+      seen[date] = true;
+      const rec = { date:date, vals:vals, missing:missing };
+      if(totCol >= 0){
+        const t = Number(row[totCol]);
+        const sum = TB_GROUPS[0].members.reduce(function(a, id){
+          return a + (vals[id] == null ? 0 : vals[id]); }, 0);
+        if(!isNaN(t) && Math.abs(t - sum) > 1)
+          rec.mismatch = { sheet:t, sum:sum };
+      }
+      days.push(rec);
+    }
+    if(!days.length) return { error:'No dated rows found below the DATE heading.' };
+    days.sort(function(a, b){ return a.date < b.date ? -1 : 1; });
+    return { days:days, warnings:warn, columns:col };
+  }
+  window.__TB_PARSE__ = tbParseHistory;
+
+  // SheetJS is ~860 KB and only an admin importing a workbook ever needs it, so
+  // it is NOT in the service worker's precache and NOT loaded with the page.
+  // Fetched on demand, once.
+  let _xlsxLoading = null;
+  function tbLoadXLSX(){
+    if(typeof XLSX !== 'undefined') return Promise.resolve();
+    if(_xlsxLoading) return _xlsxLoading;
+    _xlsxLoading = new Promise(function(res, rej){
+      const sc = document.createElement('script');
+      sc.src = './xlsx.full.min.js';
+      sc.onload = function(){ res(); };
+      sc.onerror = function(){
+        rej(new Error('Could not load the spreadsheet reader. It is not stored ' +
+                      'for offline use — this needs a connection.'));
+      };
+      document.head.appendChild(sc);
+    });
+    return _xlsxLoading;
+  }
+
+  let _impDays = null;
+  function tbImpOut(html){
+    const el = document.getElementById('tbImpOut');
+    if(el) el.innerHTML = html;
+  }
+  function tbMonthsOf(days){
+    const m = [];
+    days.forEach(function(d){
+      const k = d.date.slice(0,7);
+      if(m.indexOf(k) === -1) m.push(k);
+    });
+    return m;
+  }
+  function tbMonthName(k){
+    const p = k.split('-');
+    return TB_MON[Number(p[1]) - 1] + ' ' + p[0];
+  }
+
+  async function tbHandleFile(file){
+    if(!_tbAdmin()) return;
+    tbImpOut('<div class="prog">Reading ' + escHtml(file.name) + '…</div>');
+    let parsed;
+    try {
+      await tbLoadXLSX();
+      const buf = await file.arrayBuffer();
+      const wb  = XLSX.read(buf, { type:'array', cellDates:true });
+      // Prefer a sheet that names itself, but fall back to the first one that
+      // actually parses rather than giving up on a renamed tab.
+      const names = wb.SheetNames.slice().sort(function(a, b){
+        const sa = /SCANNER/i.test(a) ? 0 : 1, sb = /SCANNER/i.test(b) ? 0 : 1;
+        return sa - sb;
+      });
+      let err = null;
+      for(const nm of names){
+        const grid = XLSX.utils.sheet_to_json(wb.Sheets[nm], { header:1, raw:true, defval:null });
+        const r = tbParseHistory(grid);
+        if(!r.error){ parsed = r; parsed.sheet = nm; break; }
+        if(!err) err = r.error;
+      }
+      if(!parsed){ tbImpOut('<div class="warn">' + escHtml(err || 'Could not read this file.') +
+                            '</div>'); return; }
+    } catch(e){
+      tbImpOut('<div class="warn">' + escHtml(e.message || String(e)) + '</div>');
+      return;
+    }
+
+    _impDays = parsed.days;
+    const months = tbMonthsOf(parsed.days);
+    const last = months[months.length - 1];
+    const opts = months.slice().reverse().map(function(k){
+      const n = parsed.days.filter(function(d){ return d.date.slice(0,7) === k; }).length;
+      return '<option value="' + k + '"' + (k === last ? ' selected' : '') + '>' +
+             escHtml(tbMonthName(k)) + ' — ' + n + ' day(s)</option>';
+    }).join('');
+
+    const mism = parsed.days.filter(function(d){ return d.mismatch; });
+    const miss = parsed.days.filter(function(d){ return d.missing.length; });
+
+    tbImpOut(
+      '<div class="sum">Read <b>' + parsed.days.length + '</b> day(s) from sheet <b>' +
+        escHtml(parsed.sheet) + '</b>, ' + escHtml(parsed.days[0].date) + ' to ' +
+        escHtml(parsed.days[parsed.days.length-1].date) + '.</div>' +
+      (mism.length ? '<div class="note2"><b>' + mism.length + ' day(s)</b> where the sheet\'s own ' +
+        'TOTAL GROSS does not equal its four Belayim batteries added up (first: ' +
+        escHtml(mism[0].date) + ', sheet ' + tbFmt(mism[0].mismatch.sheet,0) + ' against ' +
+        tbFmt(mism[0].mismatch.sum,0) + '). The per-battery figures are what get imported.</div>' : '') +
+      (miss.length ? '<div class="note2"><b>' + miss.length + ' day(s)</b> missing a battery ' +
+        'figure (first: ' + escHtml(miss[0].date) + ' — ' + escHtml(miss[0].missing.join(', ')) +
+        '). Those batteries are skipped for those days; the rest still import.</div>' : '') +
+      '<div class="note2">The Belayim columns are <b>gross</b> and the T.B. 10/1 column is ' +
+        '<b>net oil</b>. They are different quantities and the app cannot tell them apart.</div>' +
+      '<div style="margin-top:12px;">' +
+        '<select id="tbImpMonth">' + opts + '</select>' +
+        '<button class="rg-btn rg-btn-primary" id="tbImpGo">Import this month</button>' +
+      '</div><div class="prog" id="tbImpProg"></div>');
+
+    const go = document.getElementById('tbImpGo');
+    if(go) go.addEventListener('click', function(){
+      const k = document.getElementById('tbImpMonth').value;
+      tbDoImport(_impDays.filter(function(d){ return d.date.slice(0,7) === k; }), k);
+    });
+  }
+
+  async function tbDoImport(days, monthKey){
+    if(!_tbAdmin() || !days.length) return;
+    if(typeof db === 'undefined' || !FIREBASE_OK || !currentUser){
+      tbImpOut('<div class="warn">No cloud connection — cannot import.</div>'); return;
+    }
+    const btn = document.getElementById('tbImpGo');
+    if(btn) btn.disabled = true;
+    const prog = document.getElementById('tbImpProg');
+    const who  = currentUser.name || currentUser.email || 'import';
+    let ok = 0, fail = 0;
+    for(const d of days){
+      for(const b of TB_LIST){
+        const v = d.vals[b.id];
+        if(v == null) continue;
+        try {
+          // merge:true — a day that already has real readings keeps them, and
+          // the imported total is only ever used where there is no reading.
+          await db.collection(TB_COL).doc(tbDocId(d.date, b.id)).set({
+            date:d.date, battery:b.id, dayTotal:v,
+            source:'scanner workbook ' + monthKey,
+            updatedBy:who, updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge:true });
+          ok++;
+        } catch(e){ fail++; console.error('[import]', d.date, b.id, e); }
+      }
+      if(prog) prog.textContent = 'Written ' + ok + ' figure(s)…';
+    }
+    // Without bumping the stamp no client, including this one, notices.
+    try {
+      const snap = await db.collection(TB_COL).get();
+      const dates = [];
+      snap.forEach(function(doc){
+        const dt = (doc.data() || {}).date;
+        if(dt && dates.indexOf(dt) === -1) dates.push(dt);
+      });
+      dates.sort();
+      await db.collection(TB_META.col).doc(TB_META.doc).set({
+        dates:dates, count:dates.length,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(), updatedBy:who
+      });
+    } catch(e){ console.error('[import] stamp', e); }
+    if(btn) btn.disabled = false;
+    if(prog) prog.textContent = '';
+    tbImpOut('<div class="sum"><b>' + tbMonthName(monthKey) + ' imported.</b> ' + ok +
+      ' figure(s) written' + (fail ? ', ' + fail + ' failed — see the console' : '') + '.</div>');
+    showToast(fail ? 'Import finished with ' + fail + ' failure(s)' : 'History imported');
+  }
+
   function tbRenderView(){
     const dv = document.getElementById('tbViewDate');
     if(dv && dv.value !== _tbDate) dv.value = _tbDate;
@@ -4381,6 +4672,15 @@ gRows.map(function(r){
     }
     const todayBtn = document.getElementById('tbTodayBtn');
     if(todayBtn) todayBtn.addEventListener('click', function(){ _tbDate = tbToday(); tbRenderAll(); });
+
+    const fi = document.getElementById('tbFile');
+    if(fi) fi.addEventListener('change', function(){
+      const f = this.files && this.files[0];
+      if(!f) return;
+      const nm = document.getElementById('tbFileName');
+      if(nm) nm.textContent = f.name;
+      tbHandleFile(f);
+    });
 
     const vd = document.getElementById('tbViewDate');
     if(vd) vd.addEventListener('change', function(){ _tbDate = this.value || tbToday(); tbRenderAll(); });
