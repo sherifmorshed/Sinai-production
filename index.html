@@ -172,6 +172,16 @@ body.light-mode .login-card{ border-top:4px solid var(--gold); }
 .login-field label{ display:block; font-size:10px; letter-spacing:1px; text-transform:uppercase;
   color:var(--muted); font-family:var(--font-num); margin-bottom:6px; }
 .login-field input{ width:100%; }
+/* Password reveal. A long password typed on a phone keyboard with nothing but
+   dots to check it against is how people end up locked out. */
+.pw-wrap{ position:relative; }
+.pw-wrap input{ padding-right:46px; }
+.pw-btn{ position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  background:transparent; border:0; color:var(--muted); cursor:pointer; padding:7px;
+  display:flex; align-items:center; border-radius:8px; }
+.pw-btn:hover{ color:var(--text); }
+.pw-btn.on{ color:var(--accent2); }
+.pw-btn .ico{ width:19px; height:19px; }
 .login-btn{
   width:100%; background:var(--accent); color:var(--on-accent); border:1px solid var(--accent);
   border-radius:11px; padding:13px; font-size:15px; font-weight:700; letter-spacing:.3px;
@@ -479,16 +489,59 @@ table.tb-tbl .tb-din{max-width:88px;}
   border-radius:8px;padding:8px 11px;margin-top:9px;font-size:12px;line-height:1.5;}
 .tb-imp .note2{border:1px solid var(--gold);background:rgba(202,138,4,.08);color:var(--gold);
   border-radius:8px;padding:8px 11px;margin-top:9px;font-size:12px;line-height:1.5;}
+.tb-period{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;
+  color:var(--text);padding:9px 11px;font-family:inherit;font-size:13px;font-weight:600;}
 .tb-imp select{background:var(--surface);border:1.5px solid var(--border);border-radius:9px;
   color:var(--text);padding:8px 10px;font-family:inherit;font-size:13px;margin-right:9px;}
 .tb-imp .prog{font-family:var(--font-num);font-size:12px;color:var(--muted);margin-top:9px;}
-.tb-heat{overflow-x:auto;margin-top:10px;}
+/* The grid has ten columns. On a phone, ten columns of a 90%-wide table are
+   about 30px each and a five-figure number simply does not fit in one — it
+   spilled over its cell. A minimum width keeps every number inside its own
+   cell and lets the table scroll the small amount it needs instead, and the
+   type steps down so that amount stays small. */
+/* A chart is a shape, not a figure. Tapping one opens it larger WITH the
+   numbers written out, because reading a value off a bar is guesswork and the
+   people using this page are reconciling production. */
+.tb-zoomable{position:relative;cursor:pointer;border-radius:12px;}
+.tb-zoomable:hover{box-shadow:0 0 0 2px var(--accent2);}
+.tb-zoomable:focus-visible{outline:2px solid var(--accent2);outline-offset:2px;}
+.tb-zoomable .zoom-tag{position:absolute;right:9px;top:7px;display:inline-flex;align-items:center;
+  gap:5px;font-size:10px;font-weight:700;color:var(--muted);background:var(--card);
+  border:1px solid var(--border);border-radius:8px;padding:3px 7px;pointer-events:none;}
+.tb-zoomable .zoom-tag .ico{width:12px;height:12px;}
+.tb-modal{position:fixed;inset:0;background:rgba(8,15,22,.72);z-index:120;display:flex;
+  align-items:center;justify-content:center;padding:16px;}
+.tb-modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;
+  width:100%;max-width:940px;max-height:92vh;display:flex;flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,.45);}
+.tb-modal-hd{display:flex;align-items:center;gap:12px;padding:14px 16px;
+  border-bottom:1px solid var(--border);}
+.tb-modal-hd h3{font-size:16px;font-weight:800;color:var(--text);}
+.tb-modal-x{margin-left:auto;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;color:var(--muted);padding:8px;cursor:pointer;display:flex;}
+.tb-modal-x:hover{color:var(--text);}
+.tb-modal-x .ico{width:18px;height:18px;}
+.tb-modal-bd{padding:14px 16px 18px;overflow:auto;}
+.tb-modal-bd .zt{width:100%;border-collapse:collapse;margin-top:14px;
+  font-family:var(--font-num);font-size:13px;font-variant-numeric:tabular-nums;}
+.tb-modal-bd .zt th{background:var(--surface);color:var(--muted);font-size:10px;letter-spacing:.6px;
+  text-transform:uppercase;padding:8px 9px;border-bottom:2px solid var(--border);text-align:center;}
+.tb-modal-bd .zt th:first-child,.tb-modal-bd .zt td:first-child{text-align:left;white-space:nowrap;}
+.tb-modal-bd .zt td{padding:8px 9px;text-align:center;border-bottom:1px solid var(--border);}
+.tb-modal-bd .zt tr:nth-child(even) td{background:rgba(148,163,184,.05);}
+.tb-modal-bd .zt td.gain{color:var(--green);font-weight:800;}
+.tb-modal-bd .zt td.loss{color:var(--red);font-weight:800;}
+.tb-modal-bd .zt td.na{color:var(--muted);}
+.tb-heat{overflow-x:auto;margin-top:10px;-webkit-overflow-scrolling:touch;}
 /* Sized to the page rather than to its contents: 90% of the available width,
    centred, so the figures are readable across a room. */
 .tb-heat table{border-collapse:separate;border-spacing:5px;font-family:var(--font-num);
   font-size:15px;width:90%;margin:0 auto;table-layout:fixed;}
 .tb-heat table thead th:first-child{width:165px;}
 .tb-heat table th.row{padding-right:12px;}
+.tb-heat table tr:first-child th:first-child{width:120px;}
+  .tb-heat tr.hrow th{font-size:9.5px;padding:8px 2px 3px;}
+}
 .tb-heat th{font-size:11.5px;color:var(--muted);font-weight:700;padding:4px 6px;white-space:nowrap;
   letter-spacing:.4px;text-transform:uppercase;}
 /* A clock header sits directly above the batteries that run it. Spaced away
@@ -502,6 +555,23 @@ table.tb-tbl .tb-din{max-width:88px;}
   background:var(--surface);color:var(--text);font-variant-numeric:tabular-nums;font-weight:700;}
 .tb-heat td.na{color:var(--muted);}
 .tb-heat td.rst{outline:2px solid var(--red);color:var(--red);font-weight:700;}
+
+/* On a phone the columns are given back to the CONTENT. `table-layout:fixed`
+   divides the width evenly whatever is in the cells, so a five-figure number
+   in a 30px column simply spills out of it — which is what happened. Sized to
+   content, no cell can be too small for what it holds, and the grid scrolls the
+   little it needs inside its own box without dragging the page sideways. */
+@media (max-width:760px){
+  .tb-heat table{table-layout:auto;width:auto;min-width:100%;font-size:12px;border-spacing:3px;}
+  .tb-heat table tr:first-child th:first-child{width:auto;}
+  .tb-heat td{padding:9px 6px;min-width:0;}
+  .tb-heat th.row{font-size:11px;padding-right:5px;}
+  .tb-heat tr.hrow th{font-size:10px;padding:9px 3px 3px;letter-spacing:0;}
+}
+@media (max-width:420px){
+  .tb-heat table{font-size:10.5px;border-spacing:2px;}
+  .tb-heat td{padding:7px 3px;border-radius:5px;}
+  .tb-heat th.row{font-size:10px;padding-right:3px;}
 .tb-legend{display:flex;gap:12px;align-items:center;font-size:10.5px;color:var(--muted);margin-top:7px;flex-wrap:wrap;}
 .tb-legend .bar{width:76px;height:9px;border-radius:3px;
   background:linear-gradient(90deg,rgba(220,38,38,.55),rgba(148,163,184,.18),rgba(22,163,74,.55));}
@@ -525,6 +595,10 @@ table.tb-tbl .tb-din{max-width:88px;}
 <symbol id="i-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/></g></symbol>
 <symbol id="i-warn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19.5H3z"/><path d="M12 9.5v4.2"/><path d="M12 16.8h.01"/></g></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6V5"/><path d="M12 19v2.4"/><path d="M2.6 12H5"/><path d="M19 12h2.4"/><path d="m5.6 5.6 1.7 1.7"/><path d="m16.7 16.7 1.7 1.7"/><path d="m18.4 5.6-1.7 1.7"/><path d="m7.3 16.7-1.7 1.7"/></g></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 5.8A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.8"/><path d="M6.5 7.7A17 17 0 0 0 2.5 12S6 18.5 12 18.5a9.4 9.4 0 0 0 3.6-.7"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="m3.5 3.5 17 17"/></g></symbol>
+<symbol id="i-expand" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M20 9V5a1 1 0 0 0-1-1h-4"/><path d="M4 15v4a1 1 0 0 0 1 1h4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/></g></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6 18 18"/><path d="M18 6 6 18"/></g></symbol>
 <symbol id="i-upload" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></g></symbol>
 <symbol id="i-tank" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="4" y="7" width="7.5" height="13" rx="1.2"/><rect x="14" y="11" width="6" height="9" rx="1.2"/><path d="M4 11h7.5"/><path d="M14 14.5h6"/><path d="M7.75 7V4.5"/><path d="M6 4.5h3.5"/></g></symbol>
 <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4 8.5 8.5 0 1 0 20 14.2z"/></g></symbol>
@@ -544,12 +618,49 @@ table.tb-tbl .tb-din{max-width:88px;}
     </div>
     <div class="login-field">
       <label for="loginPassword">Password</label>
-      <input type="password" id="loginPassword" placeholder="Enter password" autocomplete="current-password">
+      <div class="pw-wrap">
+        <input type="password" id="loginPassword" placeholder="Enter password" autocomplete="current-password">
+        <button type="button" id="pwToggle" class="pw-btn" aria-label="Show password" aria-pressed="false">
+          <svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg>
+        </button>
+      </div>
     </div>
     <button class="login-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
     <div class="login-error" id="loginError"></div>
   </div>
 </div>
+
+<script>
+// Password reveal. In its OWN script block, and delegated from the document,
+// on purpose: it used to sit in the shell block alongside the Firebase boot,
+// and when that boot threw — a bad API key is enough — the listener was never
+// reached and the button did nothing. Nothing here can be taken down by an
+// unrelated failure elsewhere.
+//
+// A long password typed on a phone keyboard with nothing but dots to check it
+// against is how people end up locked out.
+document.addEventListener('click', function(e){
+  // Climb by hand rather than with closest(): a real tap lands on the <svg>
+  // inside the button, and closest() is not dependable from an SVG target
+  // across browsers. A button-sized loop is.
+  let btn = e.target;
+  while(btn && btn !== document && btn.id !== 'pwToggle') btn = btn.parentNode;
+  if(!btn || btn.id !== 'pwToggle') return;
+  const inp = document.getElementById('loginPassword');
+  if(!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.classList.toggle('on', show);
+  btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  btn.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-' +
+                  (show ? 'eye-off' : 'eye') + '"/></svg>';
+  // Changing the type sends the caret to the end, so put it back.
+  const v = inp.value;
+  inp.focus();
+  try { inp.setSelectionRange(v.length, v.length); } catch(err){}
+});
+</script>
 
 <!-- ══ HEADER ════════════════════════════════════════════════════════ -->
 <div class="app-header" id="appHeader" style="display:none;">
@@ -624,7 +735,7 @@ table.tb-tbl .tb-din{max-width:88px;}
 <div id="page-tb" style="display:none;">
   <div class="page-hdr">
     <h2 id="tbHeading"><svg class="ico ico-h" aria-hidden="true"><use href="#i-tank"/></svg> Tank Batteries</h2>
-    <p id="tbSubtitle">Scanner readings every three hours, 05:00 → 05:00, production by difference</p>
+    <p id="tbSubtitle"></p>
   </div>
   <div style="padding:12px 14px 30px;">
 
@@ -656,6 +767,25 @@ table.tb-tbl .tb-din{max-width:88px;}
     </div><!-- /tb-page-entry -->
 
     <!-- ── ADMIN ONLY: the scanners, across days ─────────────────────── -->
+    <!-- ── the card colleagues are used to ──────────────────────────── -->
+    <div id="tb-page-old" style="display:none;">
+      <div class="rg-bar">
+        <label class="rg-lbl" for="tbOldDate">Shift day</label>
+        <input type="date" id="tbOldDate" class="rg-date">
+        <button class="rg-btn" id="tbOldToday">Today</button>
+        <select id="tbOldPeriod" class="tb-period">
+          <option value="day">24 hours</option>
+          <option value="h1">First 12 hours</option>
+          <option value="h2">Second 12 hours</option>
+        </select>
+      </div>
+      <div id="tbOldCard"></div>
+      <div class="rg-actions" id="tbOldActions">
+        <button class="rg-btn rg-btn-primary" id="tbOldPrint"><svg class="ico" aria-hidden="true"><use href="#i-print"/></svg> Print report</button>
+        <button class="rg-btn rg-btn-primary" id="tbOldMail"><svg class="ico" aria-hidden="true"><use href="#i-mail"/></svg> Send by e-mail</button>
+      </div>
+    </div>
+
     <div id="tb-page-view" style="display:none;">
 
       <div class="rg-bar">
@@ -681,9 +811,6 @@ table.tb-tbl .tb-din{max-width:88px;}
 
       <div class="rg-sec-title">Import daily history</div>
       <div class="tb-imp" id="tbImport">
-        <p>Load the daily scanner-reading workbook to bring past days in as
-           <b>daily figures</b> — a day total per battery, with no three-hour
-           readings behind it. Days that already have real readings keep them.</p>
         <label class="rg-btn rg-btn-primary" for="tbFile">
           <svg class="ico" aria-hidden="true"><use href="#i-upload"/></svg> Choose workbook…
         </label>
@@ -719,6 +846,20 @@ table.tb-tbl .tb-din{max-width:88px;}
       </div>
     </div>
     </div><!-- /tb-page-view -->
+
+    <!-- Chart detail. One overlay reused by every chart on the page. -->
+    <div class="tb-modal" id="tbModal" style="display:none;" role="dialog" aria-modal="true"
+         aria-labelledby="tbModalTitle">
+      <div class="tb-modal-box">
+        <div class="tb-modal-hd">
+          <h3 id="tbModalTitle"></h3>
+          <button class="tb-modal-x" id="tbModalClose" aria-label="Close">
+            <svg class="ico" aria-hidden="true"><use href="#i-close"/></svg>
+          </button>
+        </div>
+        <div class="tb-modal-bd" id="tbModalBody"></div>
+      </div>
+    </div>
 
   </div>
 </div>
@@ -3205,15 +3346,18 @@ document.addEventListener('DOMContentLoaded', function(){
   // charts. Admin only — an operator has entry and nothing else, so drawing him
   // a pair of chips he cannot use would be furniture.
   let _tbSub = 'entry';
-  const _TB_SUBS = [ { k:'entry', label:'Entry', icon:'edit' },
-                     { k:'view',  label:'Scanners', icon:'trend' } ];
+  const _TB_SUBS = [ { k:'entry', label:'Entry',       icon:'edit'  },
+                     { k:'view',  label:'Scanners',    icon:'trend' },
+                     { k:'old',   label:'Report card', icon:'print' } ];
   function tbShowSub(k){
     if(!_tbAdmin()) k = 'entry';
     _tbSub = k;
     const e = document.getElementById('tb-page-entry');
     const v = document.getElementById('tb-page-view');
+    const o = document.getElementById('tb-page-old');
     if(e) e.style.display = (k === 'entry') ? '' : 'none';
     if(v) v.style.display = (k === 'view')  ? '' : 'none';
+    if(o) o.style.display = (k === 'old')   ? '' : 'none';
     const bar = document.getElementById('tbSubTabs');
     if(bar) Array.prototype.forEach.call(bar.querySelectorAll('button'), function(b){
       b.classList.toggle('on', b.getAttribute('data-sub') === k);
@@ -3221,6 +3365,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // The charts were written into a hidden container and came out sized zero,
     // the same trap the main tabs have. Redraw on the way in.
     if(k === 'view') tbRenderView();
+    if(k === 'old')  tbRenderOld();
   }
   function tbRenderSubTabs(){
     const bar = document.getElementById('tbSubTabs');
@@ -3311,6 +3456,16 @@ document.addEventListener('DOMContentLoaded', function(){
       if(yest[i] != null) bars += '<rect x="' + (cx - bw - 1).toFixed(1) + '" y="' + sy(Math.max(0,yest[i])).toFixed(1) +
         '" width="' + bw + '" height="' + Math.max(1, y0 - sy(Math.max(0,yest[i]))).toFixed(1) +
         '" rx="2" fill="' + cY + '"/>';
+      if(opt.showValues && today[i] != null)
+        bars += '<text x="' + (cx + 1 + bw/2).toFixed(1) + '" y="' +
+          (sy(Math.max(0,today[i])) - 4).toFixed(1) + '" text-anchor="middle" fill="' + cT +
+          '" font-size="10" font-weight="700" font-family="' + fN + '">' +
+          tbFmt(today[i], 0) + '</text>';
+      if(opt.showValues && yest[i] != null)
+        bars += '<text x="' + (cx - bw - 1 + bw/2).toFixed(1) + '" y="' +
+          (sy(Math.max(0,yest[i])) - 4).toFixed(1) + '" text-anchor="middle" fill="' + cTx +
+          '" font-size="10" font-weight="700" font-family="' + fN + '">' +
+          tbFmt(yest[i], 0) + '</text>';
       if(today[i] != null) bars += '<rect x="' + (cx + 1).toFixed(1) + '" y="' + sy(Math.max(0,today[i])).toFixed(1) +
         '" width="' + bw + '" height="' + Math.max(1, y0 - sy(Math.max(0,today[i]))).toFixed(1) +
         '" rx="2" fill="' + (today[i] < 0 ? cNeg : cT) + '"/>';
@@ -3390,7 +3545,7 @@ document.addEventListener('DOMContentLoaded', function(){
       // deliberately no all-five chart: the two groups do not share a line.
       fieldEl.innerHTML = tbGroupsVisible().map(function(g){
         if(tbGroupList(g).length < 2) return '';   // 10/1 is its own mini below
-        const a = tbGroupCalc(_tbDate, g).iv, b = tbGroupCalc(y, g).iv;
+        const a = tbGroupCalc(_tbDate, g).iv, b = tbGroupCalc(y, g).iv, c0 = b;
         const st = tbGroupList(g)[0];
         const labels = [];
         for(let i = 1; i < TB_READS; i++)
@@ -3398,7 +3553,11 @@ document.addEventListener('DOMContentLoaded', function(){
         return '<div class="tb-mini tb-mini-g"><div class="cap"><h4>' + escHtml(g.name) + '</h4>' +
           '<span class="clk">' + tbGroupList(g).length + ' batteries · shipped to PETRECO</span>' +
           tbDeltaChip(tbSum(a), tbSum(b)) + '</div>' +
-          tbBarChart(labels, a, b, { h:220 }) + '</div>';
+          tbZoomable('iv-' + g.id, g.name + ' — three-hour production',
+            tbBarChart(labels, a, b, { h:220 }),
+            { kind:'bar', axis:'Interval', labels:labels, diff:true,
+              series:[{ name:'Today ' + _tbDate, vals:a },
+                      { name:'Yesterday ' + y, vals:c0 }] }) + '</div>';
       }).join('');
     }
     const grid = document.getElementById('tbIntervalGrid');
@@ -3412,7 +3571,11 @@ document.addEventListener('DOMContentLoaded', function(){
           escHtml(b.name) + '</h4>' +
           '<span class="clk">' + tbLabel(0, b) + ' shift' + (solo ? ' · shipped to PETRECO' : '') + '</span>' +
           tbDeltaChip(tbSum(a), tbSum(c)) + '</div>' +
-          tbBarChart(labels, a, c, { h:170 }) + '</div>';
+          tbZoomable('ivb-' + b.id, b.name + ' — three-hour production',
+            tbBarChart(labels, a, c, { h:170 }),
+            { kind:'bar', axis:'Interval', labels:labels, diff:true,
+              series:[{ name:'Today ' + _tbDate, vals:a },
+                      { name:'Yesterday ' + y, vals:c }] }) + '</div>';
       }).join('');
     }
   }
@@ -3656,6 +3819,32 @@ document.addEventListener('DOMContentLoaded', function(){
   function tbNorm(v){
     return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().toUpperCase();
   }
+  // A spreadsheet's declared range is not the data in it. This workbook says
+  // A2:XFD1955 — every one of Excel's 16,384 columns — and asking a converter
+  // for a dense grid of that builds THIRTY-TWO MILLION cells and takes the
+  // browser tab down with it. That is exactly what happened on the first try.
+  //
+  // So the extent is measured from the cells that actually exist rather than
+  // from what the file claims, with a hard cap as a backstop. Only populated
+  // cells are keys on the sheet object, so this is cheap.
+  const TB_MAX_COLS = 128, TB_MAX_ROWS = 60000;
+  function tbSheetGrid(ws){
+    if(!ws || !ws['!ref']) return [];
+    let maxC = 0, maxR = 0;
+    Object.keys(ws).forEach(function(k){
+      if(k.charAt(0) === '!') return;
+      const cell = XLSX.utils.decode_cell(k);
+      if(cell.c > maxC) maxC = cell.c;
+      if(cell.r > maxR) maxR = cell.r;
+    });
+    const dec = XLSX.utils.decode_range(ws['!ref']);
+    const range = { s:{ r:0, c:0 },
+                    e:{ r:Math.min(maxR, dec.e.r, TB_MAX_ROWS - 1),
+                        c:Math.min(maxC, dec.e.c, TB_MAX_COLS - 1) } };
+    return XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null, range:range });
+  }
+  window.__TB_GRID__ = tbSheetGrid;
+
   function tbParseHistory(grid){
     const warn = [];
     // The header row is the one whose first cells contain DATE.
@@ -3808,7 +3997,7 @@ document.addEventListener('DOMContentLoaded', function(){
       });
       let err = null;
       for(const nm of names){
-        const grid = XLSX.utils.sheet_to_json(wb.Sheets[nm], { header:1, raw:true, defval:null });
+        const grid = tbSheetGrid(wb.Sheets[nm]);
         const r = tbParseHistory(grid);
         if(!r.error){ parsed = r; parsed.sheet = nm; break; }
         if(!err) err = r.error;
@@ -3822,7 +4011,14 @@ document.addEventListener('DOMContentLoaded', function(){
 
     _impDays = parsed.days;
     const months = tbMonthsOf(parsed.days);
-    const last = months[months.length - 1];
+    // Default to the last month that is actually a month. The newest one is
+    // usually a few days of the current month, and offering that as the
+    // default invites importing two days when a month was meant.
+    let last = months[months.length - 1];
+    for(let i = months.length - 1; i >= 0; i--){
+      const n = parsed.days.filter(function(d){ return d.date.slice(0,7) === months[i]; }).length;
+      if(n >= 20){ last = months[i]; break; }
+    }
     const opts = months.slice().reverse().map(function(k){
       const n = parsed.days.filter(function(d){ return d.date.slice(0,7) === k; }).length;
       return '<option value="' + k + '"' + (k === last ? ' selected' : '') + '>' +
@@ -3905,7 +4101,248 @@ document.addEventListener('DOMContentLoaded', function(){
     showToast(fail ? 'Import finished with ' + fail + ' failure(s)' : 'History imported');
   }
 
+  // ── the report card ─────────────────────────────────────────────────────
+  // The layout colleagues already read every morning — scanner, today,
+  // yesterday, difference — kept close to the card they know, but in the app's
+  // own colours rather than the original blue and yellow.
+  //
+  // The original covered twelve hours. That is offered alongside the full day,
+  // because a twelve-hour card and a twenty-four-hour card are different
+  // reports and the heading has to say which one is on the page.
+  const TB_PERIODS = { day:{ from:0, to:8, label:'24 HRS' },
+                       h1: { from:0, to:4, label:'FIRST 12 HRS' },
+                       h2: { from:4, to:8, label:'SECOND 12 HRS' } };
+  let _tbOldPeriod = 'day';
+
+  function tbPeriodTotal(dateStr, id, p){
+    const c = tbCalcOne(tbGetDay(dateStr).tbs[id]);
+    // An imported day carries a day total and no intervals, so it can answer
+    // for the whole day and must not pretend to answer for half of it.
+    if(c.dayOnly) return (p === 'day') ? c.total : null;
+    return tbSum(c.prod.slice(1).slice(TB_PERIODS[p].from, TB_PERIODS[p].to));
+  }
+  function tbPeriodGroup(dateStr, g, p){
+    let t = null;
+    g.members.forEach(function(id){
+      const v = tbPeriodTotal(dateStr, id, p);
+      if(v != null) t = (t == null ? 0 : t) + v;
+    });
+    return t;
+  }
+
+  function tbOldCardHTML(dateStr, p, forPrint){
+    const y = tbPrevDate(dateStr);
+    const C = forPrint
+      ? { ink:'#16232f', mute:'#5d7286', line:'#dbe4ee', head:'#123a5a', headInk:'#ffffff',
+          band:'#eef3f8', gain:'#15803d', loss:'#b91c1c', totalBg:'#fbf6e9', card:'#ffffff' }
+      : { ink:'var(--text)', mute:'var(--muted)', line:'var(--border)', head:'var(--accent)',
+          headInk:'var(--on-accent)', band:'var(--surface)', gain:'var(--green)',
+          loss:'var(--red)', totalBg:'rgba(202,138,4,.12)', card:'var(--card)' };
+
+    function diffPill(a, b){
+      if(a == null || b == null) return '<span class="pill nil">—</span>';
+      const d = a - b;
+      return '<span class="pill ' + (d > 0 ? 'up' : d < 0 ? 'down' : 'flat') + '">' +
+             (d > 0 ? '+' : d < 0 ? '−' : '±') + tbFmt(Math.abs(d), 0) + ' m³</span>';
+    }
+    function row(name, a, b, cls){
+      return '<tr' + (cls ? ' class="' + cls + '"' : '') + '>' +
+        '<td class="nm">' + escHtml(name) + '</td>' +
+        '<td class="v">' + (a == null ? '—' : tbFmt(a,0) + ' m³') + '</td>' +
+        '<td class="v y">' + (b == null ? '—' : tbFmt(b,0) + ' m³') + '</td>' +
+        '<td class="d">' + diffPill(a, b) + '</td></tr>';
+    }
+
+    let blocks = '';
+    TB_GROUPS.forEach(function(g){
+      let rows = '';
+      tbGroupList(g).forEach(function(bt){
+        rows += row(bt.name, tbPeriodTotal(dateStr, bt.id, p), tbPeriodTotal(y, bt.id, p));
+      });
+      // A group of one is already its own total; printing the same figure twice
+      // under two names only invites the question of why they differ.
+      if(tbGroupList(g).length > 1)
+        rows += row('TOTAL', tbPeriodGroup(dateStr, g, p), tbPeriodGroup(y, g, p), 'tot');
+      blocks += '<div class="blk"><div class="blk-h">' + escHtml(g.name) + '</div>' +
+        '<table><thead><tr><th class="nm">Scanner</th><th>Today</th><th>Yesterday</th>' +
+        '<th>Difference</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    });
+
+    const css =
+      '.tbcard{background:' + C.card + ';border:1px solid ' + C.line + ';border-radius:16px;' +
+        'overflow:hidden;max-width:820px;margin:0 auto;}' +
+      '.tbcard .hd{background:' + C.head + ';color:' + C.headInk + ';padding:16px 20px;' +
+        'display:flex;align-items:center;gap:14px;flex-wrap:wrap;}' +
+      '.tbcard .hd h2{font-size:22px;font-weight:800;letter-spacing:-.02em;margin:0;}' +
+      '.tbcard .hd .sub{font-size:11.5px;letter-spacing:1.4px;font-weight:700;opacity:.88;' +
+        'text-transform:uppercase;margin-top:3px;}' +
+      '.tbcard .hd .date{margin-left:auto;background:rgba(255,255,255,.16);border-radius:10px;' +
+        'padding:9px 14px;font-size:15px;font-weight:800;font-family:ui-monospace,monospace;}' +
+      '.tbcard .bd{padding:16px 18px 18px;}' +
+      '.tbcard .blk + .blk{margin-top:18px;}' +
+      '.tbcard .blk-h{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;' +
+        'color:' + C.mute + ';font-weight:800;margin-bottom:6px;}' +
+      '.tbcard table{width:100%;border-collapse:collapse;}' +
+      '.tbcard th{background:' + C.band + ';color:' + C.mute + ';font-size:10.5px;letter-spacing:1px;' +
+        'text-transform:uppercase;padding:9px 10px;text-align:center;border-bottom:2px solid ' + C.line + ';}' +
+      '.tbcard th.nm{text-align:left;}' +
+      '.tbcard td{padding:11px 10px;text-align:center;border-bottom:1px solid ' + C.line + ';' +
+        'font-family:ui-monospace,monospace;font-size:17px;font-weight:700;color:' + C.ink + ';}' +
+      '.tbcard td.nm{text-align:left;font-size:15px;font-weight:800;font-family:inherit;}' +
+      '.tbcard td.y{color:' + C.mute + ';font-weight:600;}' +
+      '.tbcard tr.tot td{background:' + C.totalBg + ';font-size:18px;font-weight:800;}' +
+      '.tbcard .pill{display:inline-block;border-radius:9px;padding:6px 12px;font-size:15px;' +
+        'font-weight:800;color:#fff;font-family:ui-monospace,monospace;white-space:nowrap;}' +
+      '.tbcard .pill.up{background:' + C.gain + ';}' +
+      '.tbcard .pill.down{background:' + C.loss + ';}' +
+      '.tbcard .pill.flat{background:' + C.mute + ';}' +
+      '.tbcard .pill.nil{background:transparent;color:' + C.mute + ';font-weight:600;}' +
+      '@media (max-width:560px){' +
+        '.tbcard td{font-size:14px;padding:9px 5px;}' +
+        '.tbcard td.nm{font-size:12.5px;}' +
+        '.tbcard .pill{font-size:12.5px;padding:5px 8px;}' +
+        '.tbcard th{font-size:9px;padding:7px 4px;letter-spacing:.4px;}' +
+        '.tbcard .hd h2{font-size:18px;} .tbcard .hd .date{font-size:13px;padding:7px 10px;}' +
+      '}';
+
+    const dt = new Date(dateStr + 'T00:00:00');
+    const pretty = ('0' + dt.getDate()).slice(-2) + '/' +
+                   ('0' + (dt.getMonth()+1)).slice(-2) + '/' + dt.getFullYear();
+    return '<style>' + css + '</style>' +
+      '<div class="tbcard"><div class="hd">' +
+        '<div><h2>Production Report</h2>' +
+        '<div class="sub">PETROBEL · T.B. Scanners for ' + TB_PERIODS[p].label + '</div></div>' +
+        '<div class="date">' + pretty + '</div>' +
+      '</div><div class="bd">' + blocks + '</div></div>';
+  }
+
+  function tbRenderOld(){
+    const dv = document.getElementById('tbOldDate');
+    if(dv && dv.value !== _tbDate) dv.value = _tbDate;
+    const sel = document.getElementById('tbOldPeriod');
+    if(sel && sel.value !== _tbOldPeriod) sel.value = _tbOldPeriod;
+    const el = document.getElementById('tbOldCard');
+    if(el) el.innerHTML = tbOldCardHTML(_tbDate, _tbOldPeriod, false);
+  }
+
+  function tbOldDoc(){
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Production Report ' +
+      escHtml(_tbDate) + '</title><style>' +
+      '*{box-sizing:border-box;margin:0;padding:0;}' +
+      'body{font-family:Arial,Helvetica,sans-serif;background:#fff;padding:26px;}' +
+      '@page{size:A4 portrait;margin:12mm;}' +
+      '@media print{body{padding:0;} tr{break-inside:avoid;} .blk{break-inside:avoid;}}' +
+      '.foot{margin-top:18px;text-align:center;font-size:10px;color:#5d7286;}' +
+      '</style></head><body>' + tbOldCardHTML(_tbDate, _tbOldPeriod, true) +
+      '<div class="foot">Generated by PETROBEL Sinai Field on ' +
+      new Date().toLocaleString('en-GB') + '<br>Powered by Sherif Morshed</div>' +
+      '</body></html>';
+  }
+  function tbOldPrint(){
+    const R = window.__REPORT__;
+    if(!R){ showToast('Report tools unavailable', true); return; }
+    R.printHTML(tbOldDoc());
+  }
+  async function tbOldEmail(){
+    const R = window.__REPORT__;
+    if(!R){ showToast('Report tools unavailable', true); return; }
+    showToast('Building PDF…');
+    let blob;
+    try { blob = await R.pdfFromHTML(tbOldDoc()); }
+    catch(err){ showToast('Could not build the PDF: ' + ((err && err.message) || 'unknown'), true); return; }
+    if(!blob || !blob.size){ showToast('The PDF came out empty', true); return; }
+    R.offerPdf(blob, 'Production_Report_' + _tbDate + '.pdf',
+      'Sinai Field production report — ' + _tbDate,
+      'T.B. scanners for ' + TB_PERIODS[_tbOldPeriod].label + ', ' + _tbDate +
+      '.\n(The card is in the attached PDF.)');
+  }
+
+  // ── charts you can open ─────────────────────────────────────────────────
+  // Every chart on this page registers what it is drawing, so tapping it can
+  // redraw the same data larger AND write the figures out underneath. A bar is
+  // a shape; production accounting needs the number.
+  let _tbZoom = {};
+  function tbZoomable(id, title, inner, spec){
+    _tbZoom[id] = { title:title, spec:spec };
+    return '<div class="tb-zoomable" data-zoom="' + escAttr(id) + '" role="button" tabindex="0" ' +
+           'aria-label="Open ' + escAttr(title) + ' with exact figures">' + inner +
+           '<span class="zoom-tag"><svg class="ico" aria-hidden="true"><use href="#i-expand"/></svg>' +
+           ' exact figures</span></div>';
+  }
+  function tbZoomTable(spec){
+    const s2 = spec.series;
+    let head = '<tr><th>' + escHtml(spec.axis || '') + '</th>';
+    s2.forEach(function(x){ head += '<th>' + escHtml(x.name) + '</th>'; });
+    // Only where the two series are the same measurement at two different
+    // times. Never inferred from the series count: two series can just as
+    // easily be two separate delivery lines, and subtracting one from the
+    // other would be a number that means nothing.
+    const wantDiff = (spec.diff === true && s2.length === 2);
+    if(wantDiff) head += '<th>Difference</th>';
+    head += '</tr>';
+    let body = '';
+    spec.labels.forEach(function(lb, i){
+      let cells = '';
+      s2.forEach(function(x){
+        const v = x.vals[i];
+        cells += '<td' + (v == null ? ' class="na"' : '') + '>' + tbFmt(v, 1) + '</td>';
+      });
+      if(wantDiff){
+        const a = s2[0].vals[i], b = s2[1].vals[i];
+        if(a == null || b == null) cells += '<td class="na">—</td>';
+        else {
+          const dd = a - b;
+          cells += '<td class="' + (dd > 0 ? 'gain' : dd < 0 ? 'loss' : '') + '">' +
+                   (dd > 0 ? '+' : dd < 0 ? '−' : '±') + tbFmt(Math.abs(dd), 1) + '</td>';
+        }
+      }
+      body += '<tr><td>' + escHtml(lb) + '</td>' + cells + '</tr>';
+    });
+    // A totals row, but only where adding the column means something — summing
+    // a run of daily totals does, summing a line of daily averages would not.
+    if(spec.total !== false){
+      let tcells = '';
+      s2.forEach(function(x){ tcells += '<td><b>' + tbFmt(tbSum(x.vals), 1) + '</b></td>'; });
+      if(wantDiff){
+        const a = tbSum(s2[0].vals), b = tbSum(s2[1].vals);
+        const dd = (a == null || b == null) ? null : a - b;
+        tcells += '<td class="' + (dd == null ? 'na' : dd > 0 ? 'gain' : dd < 0 ? 'loss' : '') + '"><b>' +
+          (dd == null ? '—' : (dd > 0 ? '+' : dd < 0 ? '−' : '±') + tbFmt(Math.abs(dd), 1)) + '</b></td>';
+      }
+      body += '<tr><td><b>Total</b></td>' + tcells + '</tr>';
+    }
+    return '<table class="zt"><thead>' + head + '</thead><tbody>' + body + '</tbody></table>';
+  }
+  function tbOpenZoom(id){
+    const z = _tbZoom[id];
+    if(!z) return;
+    const t = document.getElementById('tbModalTitle');
+    const b = document.getElementById('tbModalBody');
+    const m = document.getElementById('tbModal');
+    if(!m || !b) return;
+    if(t) t.textContent = z.title;
+    const sp = z.spec;
+    let chart;
+    if(sp.kind === 'bar'){
+      chart = tbBarChart(sp.labels, sp.series[0].vals, sp.series[1].vals,
+                         { h:300, w:860, showValues:true });
+    } else {
+      chart = tbLineChart(sp.labels, sp.series.map(function(x, i){
+        return { label:x.name, color:x.color || tbColor(i), vals:x.vals };
+      }), sp.unit || '', false, 320);
+    }
+    b.innerHTML = chart + tbZoomTable(sp);
+    m.style.display = 'flex';
+    const x = document.getElementById('tbModalClose');
+    if(x) x.focus();
+  }
+  function tbCloseZoom(){
+    const m = document.getElementById('tbModal');
+    if(m) m.style.display = 'none';
+  }
+
   function tbRenderView(){
+    _tbZoom = {};
     const dv = document.getElementById('tbViewDate');
     if(dv && dv.value !== _tbDate) dv.value = _tbDate;
     tbRenderDayKpis();
@@ -3944,7 +4381,12 @@ document.addEventListener('DOMContentLoaded', function(){
         return { label:g.name, color:tbColor(i === 0 ? 2 : 0),
                  vals: rows.map(function(r){ return tbGroupCalc(r.date, g).total; }) };
       });
-      all.innerHTML = tbLineChart(dates.map(tbDayLabel), series, 'Daily production m³/d');
+      all.innerHTML = tbZoomable('daily-all', 'Daily production — all groups',
+        tbLineChart(dates.map(tbDayLabel), series, 'Daily production m³/d'),
+        { kind:'line', axis:'Day', unit:'Daily production m³/d',
+          labels:dates.map(tbDayLabel),
+          series:series.map(function(x){ return { name:x.label, color:x.color, vals:x.vals }; }),
+          total:false });
     }
 
     // One chart per battery, so a single battery's trend can be read without
@@ -3955,8 +4397,10 @@ document.addEventListener('DOMContentLoaded', function(){
         const vals = rows.map(function(r){ return r.per[b.id].total; });
         return '<div class="tb-panel"><div class="bar"></div>' +
           '<div class="hd"><h3>' + escHtml(b.name) + '</h3></div>' +
-          '<div class="bd">' + tbLineChart(dates.map(tbDayLabel),
-                                           [{ label:b.name, color:tbColor(i), vals:vals }], 'm³/d') +
+          '<div class="bd">' + tbZoomable('daily-' + b.id, b.name + ' — daily production',
+            tbLineChart(dates.map(tbDayLabel), [{ label:b.name, color:tbColor(i), vals:vals }], 'm³/d'),
+            { kind:'line', axis:'Day', unit:'m³/d', labels:dates.map(tbDayLabel),
+              series:[{ name:b.name, color:tbColor(i), vals:vals }], total:false }) +
           '</div></div>';
       }).join('');
     }
@@ -4426,11 +4870,15 @@ gRows.map(function(r){
       }
     }
     const sub = document.getElementById('tbSubtitle');
-    if(sub) sub.textContent = (_tbAdmin() && _tbSub === 'view')
-      ? 'Three-hour production against yesterday, and the record across days'
-      : tbCanEdit()
-        ? 'Enter the scanner reading and WHP at each of the nine times'
-        : 'Scanner readings and production, read-only';
+    if(sub){
+      // Nothing on the entry page: the table says what it wants. An empty
+      // subtitle is HIDDEN rather than left blank, or it holds open a gap the
+      // heading then floats above.
+      const txt = (_tbAdmin() && _tbSub === 'view')
+        ? 'Three-hour production against yesterday, and the record across days' : '';
+      sub.textContent = txt;
+      sub.style.display = txt ? '' : 'none';
+    }
     tbRenderSubTabs();
     tbShowSub(_tbAdmin() ? _tbSub : 'entry');
     tbRenderTotals();
@@ -4450,6 +4898,7 @@ gRows.map(function(r){
     // Only when it is on screen: five charts redrawn on every keystroke of the
     // entry table would be wasted work on a phone.
     if(_tbAdmin() && _tbSub === 'view') tbRenderView();
+    if(_tbAdmin() && _tbSub === 'old')  tbRenderOld();
     const sv = document.getElementById('tbSaved');
     const day = tbGetDay(_tbDate);
     if(sv) sv.textContent = day.updatedAt
@@ -4682,6 +5131,40 @@ gRows.map(function(r){
       tbHandleFile(f);
     });
 
+    // Delegated: the charts are rebuilt on every render, so a listener bound to
+    // one would die with it.
+    const vp = document.getElementById('tb-page-view');
+    if(vp){
+      vp.addEventListener('click', function(e){
+        let n = e.target;
+        while(n && n !== vp && !(n.getAttribute && n.getAttribute('data-zoom'))) n = n.parentNode;
+        if(n && n.getAttribute && n.getAttribute('data-zoom')) tbOpenZoom(n.getAttribute('data-zoom'));
+      });
+      vp.addEventListener('keydown', function(e){
+        if(e.key !== 'Enter' && e.key !== ' ') return;
+        const n = e.target;
+        if(n && n.getAttribute && n.getAttribute('data-zoom')){
+          e.preventDefault(); tbOpenZoom(n.getAttribute('data-zoom'));
+        }
+      });
+    }
+    const mx = document.getElementById('tbModalClose');
+    if(mx) mx.addEventListener('click', tbCloseZoom);
+    const md = document.getElementById('tbModal');
+    if(md) md.addEventListener('click', function(e){ if(e.target === md) tbCloseZoom(); });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') tbCloseZoom(); });
+
+    const od = document.getElementById('tbOldDate');
+    if(od) od.addEventListener('change', function(){ _tbDate = this.value || tbToday(); tbRenderAll(); });
+    const ot = document.getElementById('tbOldToday');
+    if(ot) ot.addEventListener('click', function(){ _tbDate = tbToday(); tbRenderAll(); });
+    const op = document.getElementById('tbOldPeriod');
+    if(op) op.addEventListener('change', function(){ _tbOldPeriod = this.value; tbRenderOld(); });
+    const opb = document.getElementById('tbOldPrint');
+    if(opb) opb.addEventListener('click', tbOldPrint);
+    const omb = document.getElementById('tbOldMail');
+    if(omb) omb.addEventListener('click', tbOldEmail);
+
     const vd = document.getElementById('tbViewDate');
     if(vd) vd.addEventListener('change', function(){ _tbDate = this.value || tbToday(); tbRenderAll(); });
     const vt = document.getElementById('tbViewToday');
@@ -4762,6 +5245,8 @@ gRows.map(function(r){
                     getDay:tbGetDay, reads:TB_READS,
                     groups:TB_GROUPS, groupCalc:tbGroupCalc, groupHalf:tbGroupHalf,
                     reportHTML:tbReportHTML, summaryText:tbSummaryText,
+                    oldCard:tbOldCardHTML, oldDoc:tbOldDoc,
+                    setPeriod:function(p){ _tbOldPeriod = p; tbRenderOld(); },
                     histReportHTML:tbHistReportHTML, histRows:tbHistRows,
                     setRange:function(r){ _tbRange = r; tbRenderHist(); },
                     setDate:function(d){ _tbDate = d; tbRenderAll(); } };
