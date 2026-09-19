@@ -64,8 +64,31 @@ sheet, where Gmail and Outlook appear with the file already attached. On a
 desktop browser with no share sheet it downloads the PDF and opens a Gmail
 compose window with the subject and summary written, ready for you to attach it.
 
-**Daily comparison history** at the bottom is one row per day. Tap a row to jump
-to that day.
+---
+
+## The daily record
+
+Below the day view is the **Daily record** — every shift day that has been
+entered, one row each, newest first. Tap a row to jump to that day.
+
+Three range chips sit above it: **30 days**, **90 days** and **All**. A window
+wider than the data is hidden, so a project with 12 days offers only "All 12".
+The chip governs everything below it — the chart, the table and the printout.
+
+**The day-by-day chart** plots each day's total, PETRECO against Ras Gara, so a
+drift that is invisible hour to hour shows up as two lines separating. Point
+markers are drawn up to 45 days and dropped beyond that, where they would merge
+into a band. An operator sees only their own line.
+
+**Print daily record** produces its own document, separate from the day report:
+the range totals, the trend chart and the full day-by-day table with the same
+red/green Difference column. Admin only.
+
+> **Days where only one side reported are excluded from the range totals**, and
+> the subtitle says how many. Counting them would compare 116 Ras Gara days
+> against 114 PETRECO ones and book the two missing sheets as loss. For the
+> same reason a day with only one side shows its Difference as "—", not as a
+> −186 m³ shortfall against an implied zero.
 
 ---
 
@@ -86,9 +109,9 @@ Set by `ADMIN_EMAILS`, `PETRECO_EMAILS` and `PLANT_EMAILS` at the top of
 Neither operator group ever sees the other's figures on screen, or the
 difference between them. The comparison is PETROBEL's to make.
 
-An account in none of the three lists can sign in but is **read-only** — it can
-look, not type. That is deliberate: an account added to the console by mistake
-should not gain write access just by existing.
+An account in none of the lists can sign in but gets only a **"No access"**
+page. The rules refuse it every collection, so an account added to the console
+by mistake gains nothing just by existing.
 
 > **The screen hides each side from the other; the accounts can still read it.**
 > Both sides live in one document per day and the rules let either operator read
@@ -116,12 +139,13 @@ rather than a white field — so a derived number never looks like an empty inpu
 
 ## Files
 
-**Upload these nine — this is the whole app:**
+**Upload these ten — this is the whole app:**
 
 | File | | |
 |---|---|---|
 | `index.html` | 84 KB | everything: markup, styles, logic |
 | `sw.js` | 4 KB | offline cache — **bump `CACHE_NAME` every release** |
+| `xlsx.full.min.js` | 861 KB | reads the history workbook. Deployed but **not** precached — loaded on demand by the admin import only |
 | `manifest.json` | 1 KB | makes it installable |
 | `icon.png`, `icon-192.png` | 64 KB | home-screen icon |
 | `firebase-app-compat.js` | 32 KB | ┐ |
@@ -141,8 +165,11 @@ offers — take only the config values from it.
 |---|---|
 | `README.md`, `SETUP.md`, `DEVELOPER_REFERENCE.md` | documentation |
 | `firestore.rules` | paste into the Firebase console; never served |
-| `test.html`, `test_petreco.html`, `test_plant.html`, `firebase-stub.js` | offline test harness |
-| `test_build.py` | regenerates the three test files |
+| `test.html`, `test_petreco.html`, `test_plant.html`, `test_tb.html`, `test_pf.html`, `test_viewer.html`, `test_empty.html`, `test_stray.html`, `firebase-stub.js` | offline test harness |
+
+| `test_hist.html`, `test_hist_rg.html` | the same harness seeded with ~120 generated days across five months — what the daily record is tested against |
+| `test_build.py`, `test_build_hist.py` | regenerate the harnesses; run after every edit to `index.html` |
+
 
 ---
 
@@ -156,22 +183,20 @@ python3 -m http.server 8000
 # admin:    http://localhost:8000/test.html
 # PETRECO:  http://localhost:8000/test_petreco.html
 # Ras Gara: http://localhost:8000/test_plant.html
+# Tank bat: http://localhost:8000/test_tb.html
+# admin, with the 116 real days:  http://localhost:8000/test_hist.html
 ```
 
-These run the real app against a stubbed Firebase with three days of seeded
-readings — no project, no network, no risk to live data. Everything works
-there: typing, the chart, print and the PDF.
-
-They are **snapshots taken from `index.html`**, so after editing it run:
+The harnesses are generated from `index.html`, so **regenerate them after every
+edit** or you will be testing the old build:
 
 ```bash
-python3 test_build.py
+python3 test_build.py        # three synthetic days, all three roles
+python3 test_build_hist.py   # the 116 real days, admin + Ras Gara
 ```
 
-or you will be testing the previous version. Full detail in
-`DEVELOPER_REFERENCE.md`.
-
 ---
+
 
 ## Getting started
 

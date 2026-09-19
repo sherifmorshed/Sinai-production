@@ -128,9 +128,12 @@ service cloud.firestore {
     //  battery sees only its own" could not be enforced here at all — it would
     //  have been a curtain on the screen and nothing more.
     //
-    //  Shift day is 05:00 → 05:00 and the date is the day the shift STARTS.
-    //  Rows are a map keyed "0".."8" = { s, w }; never an array, because an
-    //  array is one atomic value and writing it replaces the whole thing.
+    //  Shift day is 05:00 → 05:00 (06:00 for T.B. 10/1) and the date is the day
+    //  the shift STARTS. Rows are a map keyed "0".."8" = { s, w, d }, and
+    //  `temp` and `chem` are maps keyed by HOUR OFFSET "0".."24"; never arrays,
+    //  because an array is one atomic value and writing it replaces the whole
+    //  thing. No rule here names a field: a battery's account may write its own
+    //  document, and what is in it is the app's business.
     //
     //  An operator's client MUST query with .where('battery','==', his own).
     //  An unfiltered query is rejected outright rather than trimmed — that is
@@ -148,6 +151,25 @@ service cloud.firestore {
     match /tbReadingsMeta/{docId} {
       allow read:  if isAdmin() || isTankBattery();
       allow write: if isAdmin() || isTankBattery();
+    }
+
+    // ── PETRECO scanners: one document per meter per day ──────────
+    //
+    //  PETRECO is the central processing facility. These are its own readings —
+    //  tank drains and crude oil, every three hours from 06:00 — and they
+    //  are nothing to do with any single tank battery, so a tank battery
+    //  operator has no business here.
+    //
+    //  Document id is `2026-09-14__pgb1`; `2026-09-14__remarks` holds the day's
+    //  note. Unlike the tank batteries there is no per-meter split of access:
+    //  PETRECO's operators record all of their own facility's meters.
+    match /pfReadings/{docId} {
+      allow read:  if isAdmin() || isPetreco();
+      allow write: if isAdmin() || isPetreco();
+    }
+    match /pfReadingsMeta/{docId} {
+      allow read:  if isAdmin() || isPetreco();
+      allow write: if isAdmin() || isPetreco();
     }
 
     // ── Deny everything else ──────────────────────────────────────

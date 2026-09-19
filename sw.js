@@ -6,7 +6,7 @@
 
 // Bump this on EVERY release or nobody sees the change. It is the single most
 // common cause of "my fix isn't showing up".
-const CACHE_NAME = 'sinai-field-v11';
+const CACHE_NAME = 'sinai-field-v27';
 
 const STATIC_ASSETS = [
   './',

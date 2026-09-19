@@ -69,12 +69,13 @@ neither is what you want.
 
 The rules grant:
 
-| | `rasGara` | `rasGaraMeta` |
-|---|---|---|
-| `sherifmorshed@gmail.com` (admin) | read + write | read + write |
-| `petreco@petrobel.org` (PETRECO) | read + write | read + write |
-| `rasgara@petrobel.org` (Ras Gara) | read + write | read + write |
-| anyone else | denied | denied |
+| | `rasGara` (+meta) | `tbReadings` | `tbReadingsMeta` | `pfReadings` (+meta) |
+|---|---|---|---|---|
+| `sherifmorshed@gmail.com` (admin) | read + write | all batteries | read + write | read + write |
+| `petreco@petrobel.org` (PETRECO) | read + write | denied | denied | read + write |
+| `rasgara@petrobel.org` (Ras Gara) | read + write | denied | denied | denied |
+| `tb…@petrobel.org` (one battery) | denied | **own battery only** | read + write | denied |
+| anyone else | denied | denied | denied | denied |
 
 Everything else in the database is denied by default.
 
@@ -110,9 +111,9 @@ the database will disagree:
 1. `ADMIN_EMAILS` / `PETRECO_EMAILS` / `PLANT_EMAILS` at the top of `index.html`
 2. `isAdmin()` / `isPetreco()` / `isPlant()` in `firestore.rules`
 
-An address in none of the lists can still sign in but gets a **read-only**
-view — deliberate, so an account created by mistake cannot type over real
-readings.
+An address in none of the lists can still sign in but gets a **"No access"**
+page and nothing else — deliberate, so an account created by mistake gains
+nothing.
 
 ---
 
@@ -126,13 +127,16 @@ Pages, IIS, nginx. Two requirements:
 - **Serve over HTTP(S), not `file://`.** Opening `index.html` from disk breaks
   the service worker and offline support.
 
-Upload these nine and nothing else:
+Upload these ten and nothing else:
 
 ```
 index.html  sw.js  manifest.json  icon.png  icon-192.png
 firebase-app-compat.js  firebase-firestore-compat.js
-firebase-auth-compat.js  html2canvas.min.js
+firebase-auth-compat.js  html2canvas.min.js  xlsx.full.min.js
 ```
+
+`xlsx.full.min.js` is needed only by admin's workbook import and is not stored
+for offline use, but without it on the server the import cannot run.
 
 The rest of the folder is documentation, `firestore.rules` (which you paste
 into the console, never serve) and the offline test harness — see `README.md`.
