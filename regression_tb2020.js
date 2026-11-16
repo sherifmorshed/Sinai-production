@@ -31,7 +31,7 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
     /\*◼️PRODUCTION\.SEP\*\n\n\*▫️Level : 40 %\*\n\n\*▫️Pressure : 2 bar\*/.test(msg) &&
     /\*◼️PUMP : On\*\n\n\*▫️Bi : 2 bar\*\n\n\*▫️Bd : 4\.6 bar\*\n\n\*▫️HZ : 35\*/.test(msg) &&
     /\*◼️LINE 10" \*?\n?\n?\*▫️Pressure : 4\.8 bar\*/.test(msg.replace('*◼️LINE 10"*', '*◼️LINE 10" *')) &&
-    /\*◼️HEATER : On\*/.test(msg) && /\*————————————-\*$/.test(msg), msg);
+    /\*◼️HEATER : On\*/.test(msg) && /\u200E━{10,}$/.test(msg), msg);
   const dot = await p.evaluate(() => document.querySelector('.ptab-hosted .ms-t[data-mslot="0"]').className);
   check('Round 05:00 marked done', /done/.test(dot), dot);
   // pump off hides and clears Bi / Bd / Hz

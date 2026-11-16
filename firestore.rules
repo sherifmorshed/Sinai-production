@@ -17,7 +17,7 @@ service cloud.firestore {
     //  then closed) applies, which is either wide open or completely broken.
     //
     //  Keep the addresses below in step with ADMIN_EMAILS / PLANT_EMAILS /
-    //  PETRECO_EMAILS / TB_EMAILS in index.html. They are two halves of the
+    //  PETRECO_EMAILS / TB_EMAILS / MECH_EMAILS in index.html. They are two halves of the
     //  same decision, and drift shows up as "the button is there but saving
     //  fails".
 
@@ -40,6 +40,14 @@ service cloud.firestore {
           && request.auth.token.email in ['petreco@petrobel.org'];
     }
 
+    // The mechanical (maintenance) department. READS every battery's readings
+    // — the running hours a PM is due on are counted from them — and writes
+    // ONE thing: the PM record, tbReadingsMeta/pm. It cannot change a reading.
+    function isMech() {
+      return request.auth != null
+          && request.auth.token.email in ['mechanical@petrobel.org'];
+    }
+
     // ── Tank batteries ────────────────────────────────────────────
     //
     //  One account per BATTERY. The map must match TB_ACCOUNTS in index.html.
@@ -53,7 +61,10 @@ service cloud.firestore {
           'tb6-1@petrobel.org':  'tb6_1',
           'tb6-2@petrobel.org':  'tb6_2',
           'tb8-1@petrobel.org':  'tb8_1',
-          'tb8-2@petrobel.org':  'tb8_2'
+          'tb8-2@petrobel.org':  'tb8_2',
+          // v49: the Water Disposal Plant — a station (pump status only),
+          // stored and guarded exactly like a battery: its own documents only.
+          'waterdisposal@petrobel.org': 'wdp'
         }.get(request.auth.token.email, '');
     }
 
@@ -65,11 +76,18 @@ service cloud.firestore {
     // BOTH the stored data and the incoming write, so an operator can neither
     // read someone else's readings nor create a document claiming to be
     // another battery's.
+    // v51: a site may HOST a station that its own operators run — T.B. 2020
+    // is operated from T.B. 10/1 with the tb10-1 account. The host owns the
+    // hosted station's documents too. Must match `host` in TB_STATIONS.
+    function tbOwnsBattery(b) {
+      return isTankBattery()
+          && (b == tbBattery() || (tbBattery() == 'tb10_1' && b == 'tb2020'));
+    }
     function tbOwnsExisting() {
-      return isTankBattery() && resource.data.battery == tbBattery();
+      return tbOwnsBattery(resource.data.battery);
     }
     function tbOwnsIncoming() {
-      return isTankBattery() && request.resource.data.battery == tbBattery();
+      return tbOwnsBattery(request.resource.data.battery);
     }
 
     // Anyone allowed to record PETRECO / Ras Gara readings.
@@ -130,7 +148,8 @@ service cloud.firestore {
     //
     //  Shift day is 05:00 → 05:00 (06:00 for T.B. 10/1) and the date is the day
     //  the shift STARTS. Rows are a map keyed "0".."8" = { s, w, d }, and
-    //  `temp` and `chem` are maps keyed by HOUR OFFSET "0".."24"; never arrays,
+    //  `temp` and `chem` are maps keyed by HOUR OFFSET "0".."24"; `pumps` and
+    //  `pumpWhy` are maps of pump → reading → state / reason; never arrays,
     //  because an array is one atomic value and writing it replaces the whole
     //  thing. No rule here names a field: a battery's account may write its own
     //  document, and what is in it is the app's business.
@@ -138,19 +157,37 @@ service cloud.firestore {
     //  An operator's client MUST query with .where('battery','==', his own).
     //  An unfiltered query is rejected outright rather than trimmed — that is
     //  how Firestore evaluates queries, and it is the behaviour we want.
+    //  Mechanical read ALL batteries (no filter needed) and write none.
+    //
+    //  v55: the document ID must be "<yyyy-mm-dd>__<battery>" for the battery
+    //  written inside it. Without this an operator could create a document
+    //  under ANOTHER battery's ID (a day that battery has not started yet)
+    //  with his own battery's name inside — and the real owner would then be
+    //  locked out of his own sheet for that day.
+    function tbIdMatches(docId) {
+      return docId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}__' + request.resource.data.battery + '$');
+    }
     match /tbReadings/{docId} {
-      allow read:   if isAdmin() || tbOwnsExisting();
-      allow create: if isAdmin() || tbOwnsIncoming();
-      allow update: if isAdmin() || (tbOwnsExisting() && tbOwnsIncoming());
+      allow read:   if isAdmin() || isMech() || tbOwnsExisting();
+      allow create: if isAdmin() || (tbOwnsIncoming() && tbIdMatches(docId));
+      allow update: if isAdmin() || (tbOwnsExisting() && tbOwnsIncoming() && tbIdMatches(docId));
       allow delete: if isAdmin();
     }
 
     // Version stamp, watched the way rasGaraMeta is. Readable by every tank
     // battery operator: it carries the list of dates that have readings and no
     // readings themselves, so it leaks nothing an operator should not see.
+    //
+    // ONE document in here is different: `pm`, the preventive-maintenance
+    // record (every PM done, and each pump's interval). Only admin and the
+    // mechanical department read or write it — a tank battery operator cannot
+    // mark a PM done or change an interval. Mechanical may write NO other
+    // document in this collection.
     match /tbReadingsMeta/{docId} {
-      allow read:  if isAdmin() || isTankBattery();
-      allow write: if isAdmin() || isTankBattery();
+      allow read:  if isAdmin() || isMech() || (isTankBattery() && docId != 'pm');
+      allow write: if isAdmin()
+                   || (isMech() && docId == 'pm')
+                   || (isTankBattery() && docId != 'pm');
     }
 
     // ── PETRECO scanners: one document per meter per day ──────────

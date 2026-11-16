@@ -4788,6 +4788,13 @@ document.addEventListener('DOMContentLoaded', function(){
       noteBox + '</div>' +
     '</div>';
   }
+  // ── WhatsApp separator lines (v60) ──
+  // The old rules were drawn with the Arabic stretch letter (ـ), which makes
+  // WhatsApp treat the whole line as Arabic and set it on the RIGHT while the
+  // message sits on the left. These use box-drawing characters, and start
+  // with a LEFT-TO-RIGHT MARK so the line keeps to the left on every phone.
+  const WA_RULE  = '\u200E━━━━━━━━━━━━━━━━━━━━';
+  const WA_SHIFT = '\u200E━━━━━ *Work Shift* ━━━━━';
   // ── القراءات: WhatsApp message (v52, reworked v53) ───────────────────────
   // Under the readings table, nothing to pick and nothing new to learn: the
   // message follows the LATEST scanner reading entered, and carries every
@@ -4810,13 +4817,13 @@ document.addEventListener('DOMContentLoaded', function(){
     const L = [ '*' + (b.wa || b.name) + '*', '*Readings — القراءات*', '',
                 '*Date : ' + _tbDate.split('-').reverse().join('/') + '*' ];
     if(o == null){
-      L.push('~ـــــــــــــــــــــــــــــــــــــــــــــ~', '', '_(no scanner reading yet)_');
+      L.push(WA_RULE, '', '_(no scanner reading yet)_');
       return L.join('\n');
     }
     const si = tbScanIndex(o), h = tbReadHour(b, o);
     const has = function(v){ return v != null && v !== ''; };
     L.push('*Time : ' + tbClock12(h) + '*' + (o === TB_SPAN ? ' _(next day)_' : ''),
-           '~ـــــــــــــــــــــــــــــــــــــــــــــ~', '', '*Scanner · Production*');
+           WA_RULE, '', '*Scanner · Production*');
     // every scanner round up to this one
     for(let k = 0; k <= si; k++){
       if(cell.s[k] == null) continue;
@@ -4834,9 +4841,9 @@ document.addEventListener('DOMContentLoaded', function(){
     if(more.length){ L.push(''); more.forEach(function(x){ L.push(x); }); }
     let tot = 0, n = 0;
     for(let k = 1; k <= si; k++) if(c.prod[k] != null){ tot += c.prod[k]; n++; }
-    if(n) L.push('', '~ـــــــــــــــــــــــــــــــــــــــــــــ~',
+    if(n) L.push('', WA_RULE,
                  '*Total production (' + tbClock12(tbStart(b)) + ' – ' + tbClock12(h) + (o === TB_SPAN ? ' next day' : '') + ') : ' + tbFmt(tot, 1) + ' m³*');
-    L.push('', '~ـــــــــــ *Work Shift* ـــــــــــ~');
+    L.push('', WA_SHIFT);
     return L.join('\n');
   }
   function tbReadWAHTML(b, cell, c){
@@ -5014,7 +5021,7 @@ document.addEventListener('DOMContentLoaded', function(){
     L.push('*`Tank Battery 10/01`*', '');
     L.push('*Time : ' + h12 + ':00 ' + (h < 12 ? 'AM' : 'PM') + '*');
     L.push('*Date : ' + _tbDate.split('-').reverse().join('/') + '*');
-    L.push('~ـــــــــــــــــــــــــــــــــــــــــــــ~');
+    L.push(WA_RULE);
     TB_MEAS_SECTIONS.forEach(function(sec){
       const lines = [];
       if(sec.k === 'tank1' || sec.k === 'tank2'){
@@ -5055,7 +5062,7 @@ document.addEventListener('DOMContentLoaded', function(){
       L.push('', '*`' + sec.en + '`*', '');
       lines.forEach(function(x){ L.push(x); });
     });
-    L.push('', '~ـــــــــــ *Work Shift* ـــــــــــ~');
+    L.push('', WA_SHIFT);
     return L.join('\n');
   }
   // ── a site's own measurements (TB_MEAS2) ──
@@ -5093,7 +5100,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const L = [ '*Station : ' + (b.wa || b.name) + '*', '',
                 '*Time : ' + (h12 < 10 ? '0' : '') + h12 + ':00 ' + (h < 12 ? 'AM' : 'PM') + '*',
                 '*Date : ' + _tbDate.split('-').reverse().join('/') + '*',
-                '~ـــــــــــــــــــــــــــــــــــــــــــــــــــــــــ~' ];
+                WA_RULE ];
     function val(f){
       if(f.pick){ const o = f.pick.filter(function(x){ return x.k === m[f.k]; })[0]; return o ? o.en : m[f.k]; }
       return m[f.k] + (f.unit ? ' ' + f.unit : '');
@@ -5112,7 +5119,7 @@ document.addEventListener('DOMContentLoaded', function(){
       L.push('', '*◼️' + sec.en + (hv != null ? ' : ' + hv : '') + '*');
       lines.forEach(function(x){ L.push('', x); });
     });
-    L.push('', '*————————————-*');
+    L.push('', WA_RULE);
     return L.join('\n');
   }
   // After any change on the tab: the dots on the times, the copy-previous
@@ -5184,7 +5191,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const order = list.map(function(pm, k){ return { pm:pm, k:k }; })
       .sort(function(a, z){ return (a.pm.ord || 0) - (z.pm.ord || 0); });
     const L = [ '*`' + (b.wa || b.name) + '`*', '', '*Station Status*',
-                '*Date : ' + _tbDate.split('-').reverse().join('/') + '*', '~ـــــــــــــــــــــــــــــــــــــــــــــ~' ];
+                '*Date : ' + _tbDate.split('-').reverse().join('/') + '*', WA_RULE ];
     if(b.outletPr && cell.op != null) L.push('', '*Outlet Pressure : ' + tbFmt(cell.op, 1) + ' psi*');
     let group = null, any = false;
     order.forEach(function(o){
@@ -5213,7 +5220,7 @@ document.addEventListener('DOMContentLoaded', function(){
       L.push('*' + f.en + ' : ' + tbFmt(f.q, 1) + ' m³/hr* (' + f.n + ' pump' + (f.n > 1 ? 's' : '') + ')');
       L.push('Average : ' + tbFmt(f.day, 0) + ' m³/day');
     });
-    L.push('', '~ـــــــــــ *Work Shift* ـــــــــــ~');
+    L.push('', WA_SHIFT);
     return L.join('\n');
   }
   // "P 1,200 psi · Q 350 m³/hr · 50 Hz" — whatever was entered, in that order.
@@ -8025,7 +8032,7 @@ document.addEventListener('DOMContentLoaded', function(){
       L.push('');
     }
     D.bats.forEach(function(B){
-      L.push('━━━━━━━━━━━━━━', '*' + B.b.name.toUpperCase() + '*' + (B.stale ? ' ⚠ (status as of ' + tbShortDay(B.stale) + ')' : ''));
+      L.push(WA_RULE, '*' + B.b.name.toUpperCase() + '*' + (B.stale ? ' ⚠ (status as of ' + tbShortDay(B.stale) + ')' : ''));
       B.groups.forEach(function(g){
         const p = [];
         if(g.in.length)  p.push('✅ ' + g.in.join(', '));
