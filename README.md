@@ -109,6 +109,19 @@ Set by `ADMIN_EMAILS`, `PETRECO_EMAILS` and `PLANT_EMAILS` at the top of
 Neither operator group ever sees the other's figures on screen, or the
 difference between them. The comparison is PETROBEL's to make.
 
+Two more roles sit on the tank battery side: one account per battery
+(`TB_ACCOUNTS`, own battery only) and the **mechanical** department
+(`MECH_EMAILS` = `mechanical@petrobel.org`, v46) — the PM management page only:
+every battery's PM status, a red-flag work list, Record PM with checklist,
+technician and work order, Excel export. It reads readings and writes nothing
+but the PM record.
+
+**Tank battery operators** (one account per battery) enter, every three hours,
+the scanner, WHP, temperature, chemical injection (every six hours) and the
+state of each pump in their pump station, plus a daily remark. Admin sees all
+five batteries, the report card, Scanner analysis, Temperature, Chemical
+injection and the Pumps report.
+
 An account in none of the lists can sign in but gets only a **"No access"**
 page. The rules refuse it every collection, so an account added to the console
 by mistake gains nothing just by existing.

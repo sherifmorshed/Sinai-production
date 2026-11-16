@@ -11,7 +11,9 @@
   var SEED=window.__SEED__||{}; var STORE=SEED.store||{}; var listeners=[];
   window.__STUB__={store:STORE, setUser:function(email){ SEED.user={email:email,uid:'x'}; a.currentUser=SEED.user; }};
   function clone(o){var c=JSON.parse(JSON.stringify(o));
-    if(c&&c.updatedAt&&c.updatedAt.__ts!==undefined){var _v=c.updatedAt.__v||1754000000000;c.updatedAt={toMillis:function(){return _v;}};}return c;}
+    if(c&&c.updatedAt&&c.updatedAt.__ts!==undefined){var _v=c.updatedAt.__v||1754000000000;c.updatedAt={toMillis:function(){return _v;}};}
+    if(c&&c.sites){Object.keys(c.sites).forEach(function(k){var t=c.sites[k];if(t&&t.__ts!==undefined){(function(v){c.sites[k]={toMillis:function(){return v;}};})(t.__v||1754000000000);}});}
+    return c;}
   function pend(o){var c=JSON.parse(JSON.stringify(o)); if(c)c.updatedAt=null; return c;}
   window.__IO__={docReads:0,collReads:0,docWrites:0,byColl:{},denied:[]};
   function bump(k,c,n){window.__IO__[k]+=n;window.__IO__.byColl[c]=window.__IO__.byColl[c]||{reads:0,writes:0};
@@ -56,16 +58,19 @@
      result, so an operator asking for all of tbReadings is refused outright even
      though some documents are his. Keep these maps matching TB_ACCOUNTS and the
      role lists in index.html and the functions in firestore.rules. */
-  var TB_MAP={'tb10-1@petrobel.org':'tb10_1','tb6-1@petrobel.org':'tb6_1',
+  var TB_MAP={'waterdisposal@petrobel.org':'wdp','tb10-1@petrobel.org':'tb10_1','tb6-1@petrobel.org':'tb6_1',
               'tb6-2@petrobel.org':'tb6_2','tb8-1@petrobel.org':'tb8_1',
               'tb8-2@petrobel.org':'tb8_2'};
   var ADMINS=['sherifmorshed@gmail.com'], PLANT=['rasgara@petrobel.org'],
-      PETRECO=['petreco@petrobel.org'];
+      PETRECO=['petreco@petrobel.org'], MECH=['mechanical@petrobel.org'];
+  function isMech(){ return MECH.indexOf(who())!==-1; }
   function who(){ return String((SEED.user&&SEED.user.email)||'').toLowerCase(); }
   function isAdmin(){ return ADMINS.indexOf(who())!==-1; }
   function isOperator(){ return isAdmin()||PLANT.indexOf(who())!==-1||PETRECO.indexOf(who())!==-1; }
   function isPetreco(){ return PETRECO.indexOf(who())!==-1; }
   function mine(){ return TB_MAP[who()]||''; }
+  var HOSTED={tb10_1:['tb2020']};
+  function owns(b){ return !!mine() && (b===mine() || (HOSTED[mine()]||[]).indexOf(b)!==-1); }
   function deny(coll,what){
     window.__IO__.denied.push({coll:coll,what:what,code:'permission-denied'});
     var e=new Error('Missing or insufficient permissions.'); e.code='permission-denied'; return e;
@@ -75,23 +80,29 @@
     var c=path.split('/')[0];
     if(c==='rasGara'||c==='rasGaraMeta') return isOperator();
     if(c==='pfReadings'||c==='pfReadingsMeta') return isAdmin()||isPetreco();
-    if(c==='tbReadingsMeta') return isAdmin()||!!mine();
+    if(c==='tbReadingsMeta'){
+      var isPm=path.split('/')[1]==='pm';
+      if(isAdmin()) return true;
+      if(isMech()) return op==='read' || isPm;
+      return !!mine() && !isPm;
+    }
     if(c==='tbReadings'){
       if(isAdmin()) return true;
+      if(isMech()) return op==='read';
       if(!mine()) return false;
-      if(op==='read') return !existing || existing.battery===mine();
-      var ok=(incoming&&incoming.battery===mine());
-      return existing ? (existing.battery===mine() && ok) : ok;
+      if(op==='read') return !existing || owns(existing.battery);
+      var ok=(incoming&&owns(incoming.battery)&&new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}__'+incoming.battery+'$').test(path.split('/')[1]));
+      return existing ? (owns(existing.battery) && ok) : ok;
     }
     return false;
   }
   function denyReason(n,filters){
     if(n!=='tbReadings') return docAllowed(n+'/x','read',null,null) ? null : 'permission-denied';
-    if(isAdmin()) return null;                            // admin reads all
+    if(isAdmin()||isMech()) return null;                  // admin & mechanical read all
     if(!mine()) return 'permission-denied';               // not a battery account
     var f=null; filters.forEach(function(x){ if(x.field==='battery') f=x; });
     if(!f) return 'permission-denied';                    // unfiltered: refused
-    if(f.value!==mine()) return 'permission-denied';      // someone else's battery
+    if(!owns(f.value)) return 'permission-denied';        // someone else's battery
     return null;
   }
   function collRef(n){
@@ -104,7 +115,9 @@
         var d=Object.keys(STORE).filter(function(k){return k.indexOf(n+'/')===0;})
           .map(function(k){return{id:k.slice(n.length+1),exists:true,data:function(){return clone(STORE[k]);}};})
           .filter(function(doc){var v=doc.data();
-            return filters.every(function(f){return v[f.field]===f.value;});});
+            return filters.every(function(f){
+              if(f.op==='>'){var a=v[f.field]&&v[f.field].toMillis?v[f.field].toMillis():null,b=f.value&&f.value.toMillis?f.value.toMillis():f.value;return a!=null&&a>b;}
+              return v[f.field]===f.value;});});
         bump('collReads',n,d.length||1);
         return Promise.resolve({size:d.length,empty:!d.length,docs:d,forEach:function(f){d.forEach(f);}});
       }
@@ -118,6 +131,7 @@
   var fsFn=function(){return{collection:collRef,enablePersistence:function(){return Promise.resolve();},
     batch:function(){var o=[];return{set:function(r,d,opt){o.push(function(){return r.set(d,opt);});return this;},update:function(r,d){o.push(function(){return r.update(d);});return this;},
       delete:function(r){o.push(function(){return r.delete();});return this;},commit:function(){return Promise.all(o.map(function(f){return f();}));}};}};};
+  fsFn.Timestamp={fromMillis:function(ms){return {toMillis:function(){return ms;}};}};
   fsFn.FieldValue={serverTimestamp:function(){return {__ts:1,__v:Date.now()};},delete:function(){return null;}};
   var u=SEED.user||{email:'sherifmorshed@gmail.com',uid:'u1'}; SEED.user=u;
   var a={currentUser:u,setPersistence:function(){return Promise.resolve();},onAuthStateChanged:function(cb){setTimeout(function(){cb(u);},50);return function(){};},
