@@ -24,13 +24,13 @@ const U = f => 'http://localhost:8801/' + f;
     const t = await p.evaluate(() => ({ tabs:[...document.querySelectorAll('.ptabs button')].map(x => x.childNodes[0].textContent.trim()).join('|'),
       head:[...document.querySelectorAll('.ptab-read thead th')].map(x => x.childNodes[0].textContent.trim()).join('|') }));
     check('6/2: two tabs, القراءات and وضع المحطة', t.tabs === 'القراءات|وضع المحطة', t.tabs);
-    check('6/2 readings: no pump columns any more', t.head === 'Time|Scanner|Production|Line pressure|Temp|Chem. inj.', t.head);
+    check('6/2 readings: no pump columns any more', t.head === 'Time|Scanner|Production|Line pressure|Temp|Sep. pressure', t.head);
     await p.fill('input[data-tb="tb6_2"][data-k="s"][data-i="5"]', '84830');
     await p.fill('input[data-tb="tb6_2"][data-k="c"][data-i="15"]', '41');
-    await p.fill('input[data-tb="tb6_2"][data-k="x"][data-i="18"]', '6.2');
+    await p.fill('input[data-tb="tb6_2"][data-k="e"][data-i="6"]', '62.5');
     await p.fill('#tbArea textarea[data-k="r"]', 'Test remark'); await sleep(1500);
     let d = await cloud(p, 'tbReadings/2026-08-20__tb6_2');
-    check('6/2: scanner, temperature, chemical and remark still save', d.rows['5'].s === 84830 && d.temp['15'] === 41 && d.chem['18'] === 6.2 && d.remarks === 'Test remark');
+    check('6/2: scanner, temperature, sep. pressure and remark save', d.rows['5'].s === 84830 && d.temp['15'] === 41 && d.rows['6'].e === 62.5 && d.remarks === 'Test remark', JSON.stringify(d.rows['6']));
     const hd = await p.evaluate(() => ({ today:getComputedStyle(document.querySelector('.hd .tot .v')).color, yest:getComputedStyle(document.querySelector('.hd .ytot .v')).color,
       lt:document.querySelector('.hd .tot .lb').textContent, ly:document.querySelector('.hd .ytot .lb').textContent }));
     check('Header: TODAY green, YESTERDAY grey', hd.lt === 'Today' && hd.ly === 'Yesterday' && hd.today !== hd.yest && /^rgb\(29, 107, 63\)$/.test(hd.today), JSON.stringify(hd));
@@ -91,7 +91,7 @@ const U = f => 'http://localhost:8801/' + f;
       oos:!!document.getElementById('tbPumpOOS'), cards:document.querySelectorAll('#tb-page-pumps .pm-card').length,
       subs:[...document.querySelectorAll('#tbSubTabs button')].map(b => b.getAttribute('data-sub')).join(',') }));
     check('Pumps tab: the situation only (5 batteries + T.B. 2020 + W.D. Plant + Fieran), no hours / stoppage / PM', r.sum === 8 && !r.reg && !r.oos && r.cards === 0, JSON.stringify(r));
-    check('Admin has no PM tab; Machinery update is there', r.subs === 'entry,old,view,temp,chem,pumps,mach,fieran,follow', r.subs);
+    check('Admin has no PM or Chemical injection tab; Machinery update is there', r.subs === 'entry,old,view,temp,pumps,mach,fieran,follow', r.subs);
     // Machinery daily update
     await p.evaluate(() => { window.__TB__.setDate('2026-08-21'); document.querySelector('#tbSubTabs button[data-sub="mach"]').click(); }); await sleep(700);
     const m = await p.evaluate(() => ({ vis:document.getElementById('tb-page-mach').style.display, card:!!document.querySelector('#tbMachCard .mdcard'),

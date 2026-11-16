@@ -562,6 +562,8 @@ body:not(.light-mode) .ms-wa{border-color:rgba(74,222,128,.35);background:rgba(7
 .pd-mx .rg-in{width:100%;}
 .tb-station .st-out{color:var(--red);font-weight:800;}
 .rd-wa{margin-top:12px;}
+.tb-reset-note{margin:8px 2px 0;padding:7px 10px;border-radius:10px;background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.35);
+  font-size:12.5px;line-height:1.6;font-family:'Segoe UI','Noto Naskh Arabic',Tahoma,sans-serif;}
 .rd-wa .ms-btns button{flex:1;}
 .st-op{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--border);
   border-radius:12px;padding:9px 11px;margin-bottom:10px;}
@@ -3617,13 +3619,21 @@ document.addEventListener('DOMContentLoaded', function(){
   // property of the BATTERY, not of this module — every label, row date and
   // shift window takes the battery, and nothing may assume 05:00.
   const TB_LIST = [
+    // v59: `sepPr` — the battery records its SEPARATOR PRESSURE at every
+    // scanner reading instead of chemical injection (6/1, 6/2, 8/1, 8/2;
+    // 10/1 keeps chemical injection). Stored as rows[i].e, cell.e.
     // v43: every battery has the station-status tab (`pumpTab`);
     // only 10/1 has the station-measurements tab (`measTab`). `wa` is how the
     // battery is written at the top of its WhatsApp message.
-    { id:'tb6_1',  name:'T.B. 6/1',  start:5, pumpTab:true, wa:'Tank Battery 6/01' },
-    { id:'tb6_2',  name:'T.B. 6/2',  start:5, pumpTab:true, wa:'Tank Battery 6/02' },
-    { id:'tb8_1',  name:'T.B. 8/1',  start:5, pumpTab:true, wa:'Tank Battery 8/01' },
-    { id:'tb8_2',  name:'T.B. 8/2',  start:5, pumpTab:true, wa:'Tank Battery 8/02' },
+    { id:'tb6_1',  name:'T.B. 6/1',  start:5, pumpTab:true, wa:'Tank Battery 6/01', sepPr:true },
+    { id:'tb6_2',  name:'T.B. 6/2',  start:5, pumpTab:true, wa:'Tank Battery 6/02', sepPr:true },
+    { id:'tb8_1',  name:'T.B. 8/1',  start:5, pumpTab:true, wa:'Tank Battery 8/01', sepPr:true },
+    // `scanReset` (v58): this battery's scanner zeroes itself every 48 hours at
+    // 05:00. On that morning the day's OPENING reading is 0 while the day
+    // before closed on the meter's last value — the two 05:00 readings are not
+    // the same number, so a 0 typed at the opening is not copied back onto
+    // the day before, and the day before's closing is not copied onto a 0.
+    { id:'tb8_2',  name:'T.B. 8/2',  start:5, pumpTab:true, wa:'Tank Battery 8/02', scanReset:true, sepPr:true },
     // `wUnit` — 10/1's operators read wellhead pressure in bar; the Belayim
     // four read psi. Display only: WHP is never summed or compared across
     // batteries, so the two units never meet in one figure.
@@ -4179,7 +4189,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const bar = key.indexOf('|');
       const id = key.slice(0, bar), kind = key.charAt(bar + 1);
       const i = parseInt(key.slice(bar + 2), 10);
-      if(!tbById(id) || 'swdcxrqymguvnho'.indexOf(kind) === -1) return;
+      if(!tbById(id) || 'swdcxrqymguvnhoe'.indexOf(kind) === -1) return;
       if(!days[dt]) days[dt] = tbBlankDay(dt);
       const cell = tbCellIn(days[dt], id);
       if(kind === 'r'){ cell.note = val || ''; return; }
@@ -4327,8 +4337,8 @@ document.addEventListener('DOMContentLoaded', function(){
   // one steps aside. Such a day can be totalled and compared, but it has no
   // three-hour detail and never pretends to.
   function tbBlankCell(){
-    const s = [], w = [], d = [], c = [], x = [];
-    for(let i = 0; i < TB_READS; i++){ s.push(null); w.push(null); d.push(null); }
+    const s = [], w = [], d = [], c = [], x = [], e = [];
+    for(let i = 0; i < TB_READS; i++){ s.push(null); w.push(null); d.push(null); e.push(null); }
     // c = temperature in °C and x = chemical injection, both indexed by HOUR
     // OFFSET from the shift start — 0..24 inclusive — not by scanner index,
     // because neither is tied to the scanner cadence. (The letter x, not a
@@ -4355,7 +4365,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // dpx[k] = { p, q, hz }: a station pump's pressure, flow and frequency.
     const dps = [], dpy = [], dpm = [], dpx = [];
     for(let k = 0; k < TB_PUMPD_MAX; k++){ dps.push(null); dpy.push(''); dpm.push(false); dpx.push({}); }
-    return { s:s, w:w, d:d, c:c, x:x, ps:ps, py:py, pmd:pmd, dps:dps, dpy:dpy, dpm:dpm, dpx:dpx, meas:meas, op:null, note:'', t:null, src:'' };
+    return { s:s, w:w, d:d, c:c, x:x, e:e, ps:ps, py:py, pmd:pmd, dps:dps, dpy:dpy, dpm:dpm, dpx:dpx, meas:meas, op:null, note:'', t:null, src:'' };
   }
   function tbBlankDay(dateStr){
     const tbs = {};
@@ -4376,6 +4386,7 @@ document.addEventListener('DOMContentLoaded', function(){
       cell.s[i] = (r.s == null) ? null : Number(r.s);
       cell.w[i] = (r.w == null) ? null : Number(r.w);
       cell.d[i] = (r.d == null) ? null : Number(r.d);
+      cell.e[i] = (r.e == null) ? null : Number(r.e);
     }
     return cell;
   }
@@ -4411,7 +4422,8 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       if(cell.s[TB_READS-1] == null && next && next.tbs && next.tbs[b.id]){
         const v = next.tbs[b.id].s;
-        if(v && v[0] != null) cell.s[TB_READS-1] = v[0];
+        // A scanner that reset opens the next day on 0 — that is not this day's closing.
+        if(v && v[0] != null && !(b.scanReset && Number(v[0]) === 0)) cell.s[TB_READS-1] = v[0];
       }
     });
     return out;
@@ -4445,6 +4457,7 @@ document.addEventListener('DOMContentLoaded', function(){
       for(let i = 0; i < TB_READS; i++){
         out.tbs[b.id].s[i] = (src.s && src.s[i] != null) ? src.s[i] : null;
         out.tbs[b.id].w[i] = (src.w && src.w[i] != null) ? src.w[i] : null;
+        out.tbs[b.id].e[i] = (src.e && src.e[i] != null) ? src.e[i] : null;
         out.tbs[b.id].d[i] = (src.d && src.d[i] != null) ? src.d[i] : null;
       }
       for(let o = 0; o <= TB_SPAN; o++){
@@ -4640,7 +4653,13 @@ document.addEventListener('DOMContentLoaded', function(){
       // Chemical injection every six hours. On the hours in between the cell is
       // closed off rather than left as an empty box, the same way the scanner
       // columns are on a temperature-only row.
-      const chemCell = tbIsChemHour(o)
+      const chemCell = b.sepPr
+        ? (si >= 0
+            ? '<td><input class="rg-in" type="number" inputmode="decimal" step="any" ' +
+              'data-tb="' + escAttr(b.id) + '" data-k="e" data-i="' + si + '" ' +
+              'value="' + (cell.e[si] == null ? '' : cell.e[si]) + '"' + (ed ? '' : ' disabled') + '></td>'
+            : '<td class="tb-off"></td>')
+        : tbIsChemHour(o)
         ? '<td><input class="rg-in" type="number" inputmode="decimal" step="any" ' +
           'data-tb="' + escAttr(b.id) + '" data-k="x" data-i="' + o + '" ' +
           'value="' + (cell.x[o] == null ? '' : cell.x[o]) + '"' + (ed ? '' : ' disabled') + '></td>'
@@ -4744,12 +4763,15 @@ document.addEventListener('DOMContentLoaded', function(){
           '<th class="tb-grp3">Production<br>m³/3h</th>' +
           '<th class="rg-grp2">Line pressure<br>' + escHtml(tbWUnit(b)) + arSpan('ضغط الخط') + '</th>' +
           '<th class="tb-grp4">Temp<br>°C' + arSpan('الحرارة') + '</th>' +
-          '<th class="tb-grp5">Chem. inj.<br>' + escHtml(tbChemUnit(b)) +
-            arSpan('حقن الكيمكال') + '</th>' +
+          (b.sepPr
+            ? '<th class="tb-grp5">Sep. pressure<br>' + escHtml(tbWUnit(b)) + arSpan('ضغط السيبريتور') + '</th>'
+            : '<th class="tb-grp5">Chem. inj.<br>' + escHtml(tbChemUnit(b)) + arSpan('حقن الكيمكال') + '</th>') +
           (b.pumpTab ? '' : tbPumps(b.id).map(function(pm){
             return '<th class="tb-grp6">' + escHtml(pm.name) + '</th>';
           }).join('')) +
-        '</tr></thead><tbody>' + rows + '</tbody></table></div>' + tbReadWAHTML(b, cell, c) + '</div>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        (b.scanReset ? '<div class="tb-reset-note" dir="rtl" lang="ar">عداد السكانر بيتصفّر كل 48 ساعة — في يوم التصفير اكتب <b>0</b> في قراءة الساعة 5 الصبح، وقراءة 5 الصبح قبل التصفير تتكتب في آخر خانة في يوم امبارح.</div>' : '') +
+        tbReadWAHTML(b, cell, c) + '</div>' +
       (b.pumpTab
         ? '<div class="ptab-pumps"' + (_tbPanelTab[b.id] === 'pumps' ? '' : ' style="display:none"') + '>' +
             tbDailyPumpsHTML(b, cell, ed) +
@@ -4807,7 +4829,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const more = [];
     if(has(cell.w[si])) more.push('*Line pressure :* ' + cell.w[si] + ' ' + tbWUnit(b));
     if(has(cell.c[o]))  more.push('*Temperature :* ' + cell.c[o] + ' °C');
-    if(tbIsChemHour(o) && has(cell.x[o])) more.push('*Chemical injection :* ' + cell.x[o] + ' ' + tbChemUnit(b));
+    if(b.sepPr){ if(has(cell.e[si])) more.push('*Sep. pressure :* ' + cell.e[si] + ' ' + tbWUnit(b)); }
+    else if(tbIsChemHour(o) && has(cell.x[o])) more.push('*Chemical injection :* ' + cell.x[o] + ' ' + tbChemUnit(b));
     if(more.length){ L.push(''); more.forEach(function(x){ L.push(x); }); }
     let tot = 0, n = 0;
     for(let k = 1; k <= si; k++) if(c.prod[k] != null){ tot += c.prod[k]; n++; }
@@ -5401,7 +5424,8 @@ document.addEventListener('DOMContentLoaded', function(){
         if(!has(cell.s[si])) m.push('scanner');
         if(!has(cell.w[si])) m.push('line pressure');
         if(!has(cell.c[o]))  m.push('temperature');
-        if(tbIsChemHour(o) && !has(cell.x[o])) m.push('chemical');
+        if(b.sepPr){ if(!has(cell.e[si])) m.push('sep. pressure'); }
+        else if(tbIsChemHour(o) && !has(cell.x[o])) m.push('chemical');
         P.due++;
         if(m.length) P.miss.push({ h:tbHH(tbStart(b) + o) + (o === TB_SPAN ? ' (closing)' : ''), what:m }); else P.done++;
       });
@@ -5555,7 +5579,7 @@ document.addEventListener('DOMContentLoaded', function(){
     });
     prod.push(['Month total'].concat(sums.map(function(v){ return Math.round(v * 100) / 100; })).concat([Math.round(grand * 100) / 100]));
     // 2. readings, 3. status, 4. measurements, 6. remarks
-    const read = [['Date', 'Battery', 'Time', 'Scanner (m³)', 'Production (m³)', 'Line pressure', 'LP unit', 'Temperature (°C)', 'Chemical injection', 'Chem. unit']];
+    const read = [['Date', 'Battery', 'Time', 'Scanner (m³)', 'Production (m³)', 'Line pressure', 'LP unit', 'Temperature (°C)', 'Sep. pressure', 'Chemical injection', 'Chem. unit']];
     const stat = [['Date', 'Site', 'Group', 'Equipment', 'Status', 'Reason', 'Pressure (psi)', 'Flow rate (m³/hr)', 'Hz']];
     const rem  = [['Date', 'Site', 'Remarks']];
     const meas = {};
@@ -5572,9 +5596,10 @@ document.addEventListener('DOMContentLoaded', function(){
             const si = tbScanIndex(o);
             const s = si >= 0 ? num(cell.s[si]) : null, w = si >= 0 ? num(cell.w[si]) : null;
             const p = (si > 0 && c.prod[si] != null) ? Math.round(c.prod[si] * 100) / 100 : null;
-            const t = num(cell.c[o]), x = tbIsChemHour(o) ? num(cell.x[o]) : null;
-            if(s == null && w == null && t == null && x == null) return;
-            read.push([d, b.name, tbHH(tbStart(b) + o) + (o === TB_SPAN ? ' +1d' : ''), s, p, w, w == null ? '' : tbWUnit(b), t, x, x == null ? '' : tbChemUnit(b)]);
+            const t = num(cell.c[o]), x = (!b.sepPr && tbIsChemHour(o)) ? num(cell.x[o]) : null;
+            const e = (b.sepPr && si >= 0 && cell.e) ? num(cell.e[si]) : null;
+            if(s == null && w == null && t == null && x == null && e == null) return;
+            read.push([d, b.name, tbHH(tbStart(b) + o) + (o === TB_SPAN ? ' +1d' : ''), s, p, w, w == null ? '' : tbWUnit(b), t, e, x, x == null ? '' : tbChemUnit(b)]);
           });
         }
         tbPumpsDaily(b.id).forEach(function(pm, k){
@@ -5845,7 +5870,6 @@ document.addEventListener('DOMContentLoaded', function(){
                      { k:'old',   label:'Report card',      icon:'print' },
                      { k:'view',  label:'Scanner analysis', icon:'trend' },
                      { k:'temp',  label:'Temperature',       icon:'trend' },
-                     { k:'chem',  label:'Chemical injection', icon:'trend' },
                      { k:'pumps', label:'Pumps',              icon:'tank'  },
                      { k:'mach',  label:'Machinery update',   icon:'print' },
                      { k:'fieran', label:'Fieran Terminal',   icon:'tank'  },
@@ -5853,7 +5877,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function tbShowSub(k){
     if(_tbMech()) k = 'pm';
     else if(!_tbAdmin()) k = 'entry';
-    else if(k === 'pm') k = 'entry';           // PM is the mechanical department's page now
+    else if(k === 'pm' || k === 'chem') k = 'entry';   // PM is mechanical's page; Chemical injection removed (v59)
     _tbSub = k;
     const e = document.getElementById('tb-page-entry');
     const v = document.getElementById('tb-page-view');
@@ -8683,7 +8707,7 @@ tbRemarksHTML(day.date, true) +
     if(_tbAdmin() && _tbSub === 'view') tbRenderView();
     if(_tbAdmin() && _tbSub === 'old')  tbRenderOld();
     if(_tbAdmin() && _tbSub === 'temp') tbRenderTemp();
-    if(_tbAdmin() && _tbSub === 'chem') tbRenderChem();
+    // (v59: the Chemical injection page is gone from the admin; tbRenderChem stays unused.)
     if(_tbAdmin() && _tbSub === 'pumps') tbRenderPumps();
     if(_tbPMUser() && _tbSub === 'pm') tbRenderPMPage();
     if(_tbAdmin() && _tbSub === 'mach') tbRenderMach();
@@ -9223,7 +9247,7 @@ tbRemarksHTML(day.date, true) +
     if(!day.tbs) day.tbs = {};
     if(!day.tbs[id]) day.tbs[id] = tbBlankCell();
     const cell = day.tbs[id];
-    ['s','w','d'].forEach(function(k){
+    ['s','w','d','e'].forEach(function(k){
       if(!cell[k] || cell[k].length !== TB_READS){
         const blank = tbBlankCell();
         cell[k] = (cell[k] || []).concat(blank[k]).slice(0, TB_READS);
@@ -9385,7 +9409,19 @@ tbRemarksHTML(day.date, true) +
       cell[kind][i] = tbNum(raw);
     }
     _tbPend.mark(_tbDate, tbPendKey(id, kind, i), cell[kind][i]);
-    if(kind !== 'd'){
+    // The 05:00 shared between two days is written to both — except across a
+    // scanner reset (`scanReset`): a 0 at the opening is the reset, not the
+    // day before's closing; and a closing is not written over a next-day 0.
+    let mirror = (kind !== 'd');
+    if(mirror && kind === 's' && (tbById(id) || {}).scanReset){
+      if(i === 0 && cell.s[0] === 0) mirror = false;
+      if(i === TB_READS - 1){
+        const nx = TB_DAYS[tbNextDate(_tbDate)];
+        const no = nx && nx.tbs && nx.tbs[id] && nx.tbs[id].s ? nx.tbs[id].s[0] : null;
+        if(no === 0) mirror = false;
+      }
+    }
+    if(mirror){
       const twin = tbBoundaryTwin(id, i);
       if(twin){
         const other = tbCellOn(twin.date, id);

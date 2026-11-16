@@ -27,8 +27,8 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
   // enter 6/1's 05:00 and 08:00 fully and its station status
   await a.evaluate(() => document.querySelector('#tbSubTabs button[data-sub="entry"]').click()); await a.clock.runFor(300);
   const I = (k, i) => '#tbArea input[data-tb="tb6_1"][data-k="' + k + '"][data-i="' + i + '"]';
-  await a.fill(I('s', 0), '1000'); await a.fill(I('w', 0), '150'); await a.fill(I('c', 0), '30'); await a.fill(I('x', 0), '5');
-  await a.fill(I('s', 1), '1040'); await a.fill(I('w', 1), '151'); await a.fill(I('c', 3), '31');
+  await a.fill(I('s', 0), '1000'); await a.fill(I('w', 0), '150'); await a.fill(I('c', 0), '30'); await a.fill(I('e', 0), '5');
+  await a.fill(I('s', 1), '1040'); await a.fill(I('w', 1), '151'); await a.fill(I('e', 1), '6'); await a.fill(I('c', 3), '31');
   await a.fill(I('s', 3), '1100');
   await a.evaluate(() => { const p = document.querySelector('.ptabs[data-ptabs="tb6_1"] button[data-ptab="pumps"]'); p.click(); });
   await a.clock.runFor(200);
@@ -39,9 +39,9 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
   await a.evaluate(() => document.querySelector('#tbSubTabs button[data-sub="follow"]').click()); await a.clock.runFor(400);
   const d1 = await a.evaluate(() => { const s = window.__FOLLOW__.data('2026-11-16').sites.find(x => x.b.id === 'tb6_1');
     return { read:s.parts[0], st:s.parts.find(p => p.name === 'Station status'), last:s.last, card:[...document.querySelectorAll('.fu-card')].find(c => /T\.B\. 6\/1/.test(c.innerText)).innerText.replace(/\s+/g,' ') }; });
-  check('After entering: 05:00 and 08:00 complete; 11:00 missing all; 14:00 missing line pressure + temperature only'+tag,
-    d1.read.done === 2 && d1.read.miss.length === 2 && d1.read.miss[0].h === '11:00' && d1.read.miss[0].what.join(',') === 'scanner,line pressure,temperature,chemical' &&
-    d1.read.miss[1].h === '14:00' && d1.read.miss[1].what.join(',') === 'line pressure,temperature', JSON.stringify(d1.read.miss));
+  check('After entering: 05:00 and 08:00 complete; 11:00 missing all; 14:00 missing line pressure, temperature, sep. pressure'+tag,
+    d1.read.done === 2 && d1.read.miss.length === 2 && d1.read.miss[0].h === '11:00' && d1.read.miss[0].what.join(',') === 'scanner,line pressure,temperature,sep. pressure' &&
+    d1.read.miss[1].h === '14:00' && d1.read.miss[1].what.join(',') === 'line pressure,temperature,sep. pressure', JSON.stringify(d1.read.miss));
   check('Station status reported clears its line; card shows who saved last'+tag, d1.st.miss.length === 0 && !!d1.last && /2 \/ 4 due/.test(d1.card) && /last saved 16 Nov/.test(d1.card), d1.card.slice(0, 260));
   const order = await a.evaluate(() => [...document.querySelectorAll('.fu-card .pchip')].map(x => x.textContent).join('|'));
   check('Sites behind are listed first, with their count'+tag, /^\d+ missing/.test(order), order);
@@ -59,7 +59,7 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
     read:B.sheets[1][1].length, readRow:B.sheets[1][1][1], stat:B.sheets[2][1].length, statRow:B.sheets[2][1][1], oos:B.sheets[B.sheets.length - 2][1].length, m101:B.sheets[3][1].length }; });
   check('Month workbook: 7 sheets'+tag, book.names.join('|') === 'Daily production|Readings|Station status|Meas T.B. 10-1|Meas T.B. 2020|Out of service|Remarks', book.names.join('|'));
   check('Daily production: a row per day of August + month total, one column per battery'+tag, book.prodRows === 33 && book.prodHead.length === 7 && book.last[0] === 'Month total' && book.last[6] !== 0, JSON.stringify(book.last));
-  check('Readings, station status, measurements and stoppages are filled'+tag, book.read > 50 && book.stat > 20 && book.oos > 1 && book.m101 > 1 && book.readRow.length === 10 && book.statRow.length === 9, JSON.stringify([book.read, book.stat, book.oos, book.m101]));
+  check('Readings, station status, measurements and stoppages are filled'+tag, book.read > 50 && book.stat > 20 && book.oos > 1 && book.m101 > 1 && book.readRow.length === 11 && book.statRow.length === 9, JSON.stringify([book.read, book.stat, book.oos, book.m101]));
   const total = await a.evaluate(() => { const T = window.__TB__, B = window.__FOLLOW__.book('2026-08'); const row = B.sheets[0][1].find(r => r[0] === '2026-08-19'); const c = T.calcDay(T.getDay('2026-08-19'));
     return { sheet:row[1], app:Math.round(c.per.tb6_1.total * 100) / 100 }; });
   check('Workbook figure equals the app\'s day total'+tag, total.sheet === total.app, JSON.stringify(total));
