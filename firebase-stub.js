@@ -12,6 +12,7 @@
   window.__STUB__={store:STORE, setUser:function(email){ SEED.user={email:email,uid:'x'}; a.currentUser=SEED.user; }};
   function clone(o){var c=JSON.parse(JSON.stringify(o));
     if(c&&c.updatedAt&&c.updatedAt.__ts!==undefined){var _v=c.updatedAt.__v||1754000000000;c.updatedAt={toMillis:function(){return _v;}};}
+    if(c){Object.keys(c).forEach(function(k){var t=c[k];if(k!=='updatedAt'&&t&&typeof t==='object'&&t.__ts!==undefined){(function(v){c[k]={toMillis:function(){return v;}};})(t.__v||Date.now());}});}
     if(c&&c.sites){Object.keys(c.sites).forEach(function(k){var t=c.sites[k];if(t&&t.__ts!==undefined){(function(v){c.sites[k]={toMillis:function(){return v;}};})(t.__v||1754000000000);}});}
     return c;}
   function pend(o){var c=JSON.parse(JSON.stringify(o)); if(c)c.updatedAt=null; return c;}
@@ -63,6 +64,8 @@
               'tb8-2@petrobel.org':'tb8_2'};
   var ADMINS=['sherifmorshed@gmail.com'], PLANT=['rasgara@petrobel.org'],
       PETRECO=['petreco@petrobel.org'], MECH=['mechanical@petrobel.org'];
+  ADMINS.push('owner@test.local');
+  function isOwner(){ return who()==='owner@test.local'; }
   function isMech(){ return MECH.indexOf(who())!==-1; }
   function who(){ return String((SEED.user&&SEED.user.email)||'').toLowerCase(); }
   function isAdmin(){ return ADMINS.indexOf(who())!==-1; }
@@ -78,6 +81,12 @@
   // op: 'read' | 'write'. existing / incoming: document data, for tbReadings.
   function docAllowed(path,op,existing,incoming){
     var c=path.split('/')[0];
+    if(c==='devices'){
+      if(op==='read') return isOwner();
+      var ok2=!!incoming&&!!who()&&incoming.account===who()&&new RegExp('^[0-9a-f]{16}__'+who().replace(/[.]/g,'[.]')+'$').test(path.split('/')[1]);
+      var allowedKeys=['device','account','role','version','platform','os','browser','installed','screen','firstSeen','lastSeen'];
+      return ok2&&Object.keys(incoming).every(function(k){return allowedKeys.indexOf(k)!==-1;});
+    }
     if(c==='rasGara'||c==='rasGaraMeta') return isOperator();
     if(c==='pfReadings'||c==='pfReadingsMeta') return isAdmin()||isPetreco();
     if(c==='tbReadingsMeta'){

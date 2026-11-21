@@ -665,6 +665,15 @@ td.ps-out .ps-sel,.pd-top .ps-out .ps-sel{background:#dc2626;border-color:#dc262
 .pm-chk{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 12px;}
 .pm-chk label{font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;}
 .pm-est{color:#d97706;font-weight:700;}
+.use-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0;font-size:12.5px;}
+.use-row .n{flex:0 0 70px;color:var(--muted);font-weight:800;}
+.use-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:12px;margin-bottom:10px;}
+.use-tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px;}
+.use-tbl th{background:var(--surface);color:var(--muted);text-align:left;font-size:11px;letter-spacing:.5px;text-transform:uppercase;padding:6px 8px;border-bottom:2px solid var(--border);}
+.use-tbl td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+.use-tbl td i{display:block;font-style:normal;font-size:10.5px;color:var(--muted);}
+.use-tbl td.n{text-align:center;font-family:var(--font-num);font-weight:800;}
+.use-tbl td.old{color:#d97706;font-weight:800;}
 .fu-card{background:var(--card);border:1px solid var(--border);border-left:5px solid var(--border);border-radius:12px;padding:9px 11px;margin-bottom:8px;}
 .fu-card.out{border-left-color:#dc2626;} .fu-card.sb{border-left-color:#d97706;} .fu-card.in{border-left-color:#16a34a;}
 .fu-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
@@ -1407,6 +1416,16 @@ document.addEventListener('click', function(e){
 <!-- ══ NO ACCESS ═════════════════════════════════════════════════════
      An account that is in none of the role lists. The rules refuse it every
      collection, so this is all it gets. -->
+<!-- Usage (v61): the OWNER account only. -->
+<div id="page-use" style="display:none;">
+  <div class="page-hdr">
+    <h2><svg class="ico ico-h" aria-hidden="true"><use href="#i-trend"/></svg> Usage</h2>
+    <p>How many devices use Sinai Field, and how. Seen by this account only.</p>
+  </div>
+  <div class="rg-bar"><button class="rg-btn" id="useRefresh" type="button" onclick="loadUsage()">Refresh</button></div>
+  <div id="useBody"></div>
+</div>
+
 <div id="page-noaccess" style="display:none;">
   <div class="page-hdr">
     <h2><svg class="ico ico-h" aria-hidden="true"><use href="#i-warn"/></svg> No access</h2>
@@ -1480,7 +1499,11 @@ const firebaseConfig = {
 // collection, so there is nothing it could be shown — an account added in the
 // Firebase console by mistake gains nothing just by existing. This list only
 // decides what the screen offers; firestore.rules is what actually refuses.
-const ADMIN_EMAILS   = ['sherifmorshed@gmail.com'];
+// v61: a second admin, the OWNER - everything the admin has, plus the Usage
+// tab, which no other account (the shared admin included) can open or read.
+// The owner's address — must be the same as isOwner() in firestore.rules.
+const OWNER_EMAILS   = ['sherif.morshedd@gmail.com'];
+const ADMIN_EMAILS   = OWNER_EMAILS.concat(['sherifmorshed@gmail.com']);
 const PLANT_EMAILS   = ['rasgara@petrobel.org'];
 const PETRECO_EMAILS = ['petreco@petrobel.org'];
 // One account PER BATTERY. Each sees and writes ONLY its own battery, and that
@@ -1522,6 +1545,172 @@ const TB_EMAILS = Object.keys(TB_ACCOUNTS);
 const MECH_EMAILS    = ['mechanical@petrobel.org'];
 
 // ══════════════════════════════════════════════════════════════════════
+//  USAGE (v61) — how many devices use the app, and how
+// ══════════════════════════════════════════════════════════════════════
+// The accounts are shared per site, so Firebase's user list says how many
+// ACCOUNTS exist, never how many phones. Each device keeps a random id of its
+// own (localStorage) and, at most every few hours, leaves one small record in
+// `devices/{deviceId}__{account}`: account, kind of device, system, browser,
+// installed or in a browser, app version, first and last seen. No name, no
+// number, no location. Only the OWNER account can read them (the Usage tab);
+// the shared admin account cannot.
+const APP_VERSION = 'v61';          // ►►►► bump with sw.js CACHE_NAME on every release
+const DEV_LS = 'sf_device_id', DEV_BEAT = 'sf_device_beat';
+const DEV_EVERY = 3 * 3600000;      // a device reports at most every 3 hours (and at once on a new version)
+function _devId(){
+  try {
+    let id = localStorage.getItem(DEV_LS);
+    if(!id || !/^[0-9a-f]{16}$/.test(id)){
+      const a = new Uint8Array(8);
+      if(window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+      else for(let i = 0; i < 8; i++) a[i] = Math.floor(Math.random() * 256);
+      id = Array.prototype.map.call(a, function(x){ return ('0' + x.toString(16)).slice(-2); }).join('');
+      localStorage.setItem(DEV_LS, id);
+    }
+    return id;
+  } catch(e){ return null; }
+}
+function _devInfo(){
+  const ua = navigator.userAgent || '';
+  const touch = (navigator.maxTouchPoints || 0) > 1;
+  const ipad = /iPad/.test(ua) || (/Macintosh/.test(ua) && touch);
+  const os = /Android/.test(ua) ? 'Android' : (/iPhone|iPod/.test(ua) || ipad) ? 'iOS'
+           : /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'macOS' : /CrOS/.test(ua) ? 'ChromeOS'
+           : /Linux/.test(ua) ? 'Linux' : 'Other';
+  const platform = (ipad || (/Android/.test(ua) && !/Mobile/.test(ua))) ? 'Tablet'
+                 : /Mobi|iPhone|Android/.test(ua) ? 'Phone' : 'Desktop';
+  const browser = /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera'
+                : /Firefox|FxiOS/.test(ua) ? 'Firefox' : /CriOS|Chrome/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : 'Other';
+  let installed = false;
+  try { installed = !!(window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch(e){}
+  return { platform:platform, os:os, browser:browser, installed:installed,
+           screen:(window.screen && screen.width ? screen.width + '×' + screen.height : '') };
+}
+function deviceBeacon(email, role){
+  try {
+    if(typeof db === 'undefined' || !FIREBASE_OK || !email) return;
+    const id = _devId(); if(!id) return;
+    const acct = String(email).toLowerCase().trim();
+    let beats = {};
+    try { beats = JSON.parse(localStorage.getItem(DEV_BEAT) || '{}') || {}; } catch(e){}
+    const last = beats[acct] || {};
+    if(last.v === APP_VERSION && Date.now() - (last.t || 0) < DEV_EVERY) return;
+    const doc = Object.assign({ device:id, account:acct, role:role, version:APP_VERSION,
+                                lastSeen:firebase.firestore.FieldValue.serverTimestamp() }, _devInfo());
+    if(!last.t) doc.firstSeen = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('devices').doc(id + '__' + acct).set(doc, { merge:true }).then(function(){
+      beats[acct] = { t:Date.now(), v:APP_VERSION };
+      try { localStorage.setItem(DEV_BEAT, JSON.stringify(beats)); } catch(e){}
+    }).catch(function(e){ console.warn('[usage] not recorded', e && e.code); });
+  } catch(e){ console.warn('[usage]', e); }
+}
+// ── the Usage tab ─────────────────────────────────────────────────────
+let _useRows = null, _useAt = 0, _useBusy = false;
+function _useMs(v){ return (v && v.toMillis) ? v.toMillis() : (typeof v === 'number' ? v : 0); }
+function _useAgo(ms){
+  if(!ms) return '—';
+  const m = Math.round((Date.now() - ms) / 60000);
+  if(m < 2) return 'just now';
+  if(m < 60) return m + ' min ago';
+  const h = Math.round(m / 60);
+  if(h < 24) return h + ' h ago';
+  const d = Math.round(h / 24);
+  return d + ' day' + (d > 1 ? 's' : '') + ' ago';
+}
+function _useDate(ms){
+  return ms ? new Date(ms).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+}
+function loadUsage(){
+  if(_useBusy) return;
+  const el = document.getElementById('useBody');
+  if(typeof db === 'undefined' || !FIREBASE_OK){
+    if(el) el.innerHTML = '<div class="fu-l">Offline — usage needs the cloud.</div>';
+    return;
+  }
+  _useBusy = true;
+  if(el && !_useRows) el.innerHTML = '<div class="fu-l">Loading…</div>';
+  db.collection('devices').get().then(function(snap){
+    const rows = [];
+    snap.forEach(function(d){ const v = d.data() || {}; v._id = d.id; rows.push(v); });
+    _useRows = rows; _useAt = Date.now();
+  }).catch(function(e){
+    if(el) el.innerHTML = '<div class="note warn">Could not read usage' +
+      (e && e.code === 'permission-denied' ? ' — publish the new firestore.rules' : '') + '.</div>';
+  }).then(function(){ _useBusy = false; if(_useRows) renderUsage(); });
+}
+function usageStats(rows, now){
+  now = now || Date.now();
+  const D = 86400000, dev = {};
+  rows.forEach(function(r){
+    const k = r.device || String(r._id).split('__')[0];
+    const ls = _useMs(r.lastSeen);
+    if(!dev[k] || ls > dev[k].ls) dev[k] = { ls:ls, platform:r.platform, os:r.os, installed:!!r.installed, version:r.version };
+  });
+  const devs = Object.keys(dev).map(function(k){ return dev[k]; });
+  const act = function(ms){ return devs.filter(function(d){ return d.ls && now - d.ls <= ms; }).length; };
+  const by = function(list, f){ const o = {}; list.forEach(function(x){ const v = f(x) || 'Unknown'; o[v] = (o[v] || 0) + 1; }); return o; };
+  const acc = {};
+  rows.forEach(function(r){
+    const a = r.account || '?', ls = _useMs(r.lastSeen);
+    acc[a] = acc[a] || { account:a, role:r.role || '', devices:0, a7:0, last:0 };
+    acc[a].devices++;
+    if(ls && now - ls <= 7 * D) acc[a].a7++;
+    if(ls > acc[a].last){ acc[a].last = ls; acc[a].role = r.role || acc[a].role; }
+  });
+  const vnum = function(v){ return Number(String(v || '').replace(/[^0-9]/g, '')) || 0; };
+  const latest = devs.map(function(d){ return d.version; }).filter(Boolean).sort(function(a, z){ return vnum(z) - vnum(a); })[0];
+  return { devices:devs.length, entries:rows.length, d1:act(D), d7:act(7 * D), d30:act(30 * D),
+           installed:devs.filter(function(d){ return d.installed; }).length,
+           platform:by(devs, function(d){ return d.platform; }), os:by(devs, function(d){ return d.os; }),
+           version:by(devs, function(d){ return d.version; }), latest:latest,
+           old:devs.filter(function(d){ return latest && d.version !== latest && now - d.ls <= 30 * D; }).length,
+           accounts:Object.keys(acc).map(function(k){ return acc[k]; }).sort(function(a, z){ return z.last - a.last; }) };
+}
+function renderUsage(){
+  const el = document.getElementById('useBody');
+  if(!el || !_useRows) return;
+  const S = usageStats(_useRows);
+  const rows = _useRows.slice().sort(function(a, z){ return _useMs(z.lastSeen) - _useMs(a.lastSeen); });
+  const chips = function(o){
+    return Object.keys(o).sort(function(a, z){ return o[z] - o[a]; }).map(function(k){
+      return '<span class="pchip">' + escHtml(k) + ' <b>' + o[k] + '</b></span>';
+    }).join(' ');
+  };
+  el.innerHTML =
+    '<div class="pm-kpis">' +
+      '<div class="k"><b>' + S.devices + '</b><span>devices in total</span></div>' +
+      '<div class="k in"><b>' + S.d1 + '</b><span>active last 24 h</span></div>' +
+      '<div class="k in"><b>' + S.d7 + '</b><span>active last 7 days</span></div>' +
+      '<div class="k"><b>' + S.d30 + '</b><span>active last 30 days</span></div>' +
+      '<div class="k"><b>' + S.installed + '</b><span>installed on home screen</span></div>' +
+      '<div class="k' + (S.old ? ' sb' : ' in') + '"><b>' + S.old + '</b><span>active on an old version</span></div>' +
+    '</div>' +
+    '<div class="use-row"><span class="n">Device</span>' + chips(S.platform) + '</div>' +
+    '<div class="use-row"><span class="n">System</span>' + chips(S.os) + '</div>' +
+    '<div class="use-row"><span class="n">Version</span>' + chips(S.version) +
+      (S.latest ? ' <span class="fu-l">latest: ' + escHtml(S.latest) + '</span>' : '') + '</div>' +
+    '<div class="rg-sec-title">By account</div>' +
+    '<div class="use-scroll"><table class="use-tbl"><thead><tr><th>Account</th><th>Role</th><th>Devices</th><th>Active 7 d</th><th>Last seen</th></tr></thead><tbody>' +
+      S.accounts.map(function(a){
+        return '<tr><td><b>' + escHtml(a.account) + '</b></td><td>' + escHtml(a.role) + '</td><td class="n">' + a.devices + '</td>' +
+          '<td class="n">' + a.a7 + '</td><td>' + _useAgo(a.last) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+    '<div class="rg-sec-title">Every device</div>' +
+    '<div class="use-scroll"><table class="use-tbl"><thead><tr><th>Account</th><th>Device</th><th>System · browser</th><th>Installed</th><th>Version</th><th>First seen</th><th>Last seen</th></tr></thead><tbody>' +
+      rows.map(function(r){
+        const old = S.latest && r.version !== S.latest;
+        return '<tr><td>' + escHtml(String(r.account || '').split('@')[0]) + '</td>' +
+          '<td>' + escHtml(r.platform || '') + (r.screen ? '<i>' + escHtml(r.screen) + '</i>' : '') + '</td>' +
+          '<td>' + escHtml((r.os || '') + ' · ' + (r.browser || '')) + '</td><td>' + (r.installed ? 'Yes' : 'Browser') + '</td>' +
+          '<td' + (old ? ' class="old"' : '') + '>' + escHtml(r.version || '') + '</td><td>' + _useDate(_useMs(r.firstSeen)) + '</td>' +
+          '<td>' + _useAgo(_useMs(r.lastSeen)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+    '<div class="fu-l">Read ' + _useDate(_useAt) + ' · a device reports when it opens the app, at most every 3 hours, ' +
+    'and at once after an update. Devices are counted from v61 onwards.</div>';
+}
+window.__USAGE__ = { stats:usageStats, load:loadUsage, beacon:deviceBeacon };
+
+// ══════════════════════════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════════════════════════
 let FIREBASE_OK = false;
@@ -1532,6 +1721,7 @@ let isRasGara = false;   // the Ras Gara plant operators
 let isPetreco = false;   // the PETRECO operators
 let isTankBat = false;   // the tank battery operators
 let isMech    = false;   // the mechanical (maintenance) department — PM only
+let isOwner   = false;   // v61: admin + the Usage tab
 // The ONE battery this session may see and write, or null for admin and for
 // everyone else. Set at sign-in from TB_ACCOUNTS; the rules enforce the same
 // thing server-side, so this only decides what the screen offers.
@@ -1878,7 +2068,8 @@ function _roleOf(email){
            plant:   PLANT_EMAILS.indexOf(e)   !== -1,
            petreco: PETRECO_EMAILS.indexOf(e) !== -1,
            tb:      TB_EMAILS.indexOf(e)      !== -1,
-           mech:    MECH_EMAILS.indexOf(e)    !== -1 };
+           mech:    MECH_EMAILS.indexOf(e)    !== -1,
+           owner:   OWNER_EMAILS.indexOf(e)   !== -1 };
 }
 
 // ── Tabs ───────────────────────────────────────────────────────────────
@@ -1907,7 +2098,7 @@ function _tabsFor(){
   // tank batteries and PETRECO's own scanners — lives under A/R Production,
   // because for an admin they are one job: check the day, read it, print it.
   // PETRECO's operators keep their own tab; this is an admin-side grouping.
-  return ['rg','tb'];
+  return isOwner ? ['rg','tb','use'] : ['rg','tb'];
 }
 function _mayOpen(tab){ return _tabsFor().indexOf(tab) !== -1; }
 
@@ -1917,7 +2108,8 @@ const _TAB_DEF = {
   // about which side of the field it covered once a second one existed.
   rg: { page:'page-rasgara', icon:'plant', label:'R/G Production' },
   tb: { page:'page-tb',      icon:'tank',  label:'A/R Production' },
-  pf: { page:'page-pf',      icon:'plant', label:'PETRECO Scanners' }
+  pf: { page:'page-pf',      icon:'plant', label:'PETRECO Scanners' },
+  use:{ page:'page-use',     icon:'trend', label:'Usage' }
 };
 
 function showTab(tab){
@@ -1938,6 +2130,7 @@ function showTab(tab){
   if(tab === 'rg' && typeof window.refreshRasGaraPage === 'function') window.refreshRasGaraPage();
   if(tab === 'tb' && typeof window.refreshTankBatteriesPage === 'function') window.refreshTankBatteriesPage();
   if(tab === 'pf' && typeof window.refreshPetrecoPage === 'function') window.refreshPetrecoPage();
+  if(tab === 'use' && typeof loadUsage === 'function') loadUsage();
 }
 
 function _renderTabs(){
@@ -1967,6 +2160,7 @@ function showApp(user){
   isPetreco  = r.petreco;
   isTankBat  = r.tb;
   isMech     = r.mech && !r.admin && !r.tb;
+  isOwner    = r.owner && r.admin;
   tbBattery  = r.tb ? (TB_ACCOUNTS[String(user.email).toLowerCase().trim()] || null) : null;
 
   document.getElementById('login-page').classList.add('hidden');
@@ -1975,7 +2169,7 @@ function showApp(user){
   document.getElementById('appFooter').style.display = '';
   document.getElementById('ubEmail').textContent = user.email;
   // A tank battery operator sees his battery in the header, not a generic role.
-  const label = isAdmin ? 'ADMIN' : isRasGara ? 'RAS GARA' : isPetreco ? 'PETRECO'
+  const label = isOwner ? 'OWNER' : isAdmin ? 'ADMIN' : isRasGara ? 'RAS GARA' : isPetreco ? 'PETRECO'
               : isTankBat ? (tbBattery === 'wdp' ? 'W.D. PLANT'
                            : tbBattery ? 'T.B. ' + tbBattery.replace('tb','').replace('_','/')
                                        : 'TANK BATT.')
@@ -2004,6 +2198,8 @@ function showApp(user){
     return;
   }
   showTab(_tabsFor()[0]);
+  // One small record per device (see USAGE). Only accounts with a role.
+  if(typeof deviceBeacon === 'function') deviceBeacon(user.email, label);
   if(_mayOpen('rg')){
     if(typeof window.refreshRasGaraPage   === 'function') window.refreshRasGaraPage();
     if(typeof window.startRasGaraListener === 'function') window.startRasGaraListener();
@@ -2023,7 +2219,8 @@ function showApp(user){
 
 function showLogin(){
   currentUser = null; isAdmin = false; isRasGara = false; isPetreco = false;
-  isTankBat = false; isMech = false; tbBattery = null;
+  isTankBat = false; isMech = false; isOwner = false; tbBattery = null;
+  if(typeof _useRows !== 'undefined'){ _useRows = null; const ub = document.getElementById('useBody'); if(ub) ub.innerHTML = ''; }
   if(typeof window.stopRasGaraListener       === 'function') window.stopRasGaraListener();
   if(typeof window.stopTankBatteriesListener === 'function') window.stopTankBatteriesListener();
   if(typeof window.stopPetrecoListener       === 'function') window.stopPetrecoListener();

@@ -23,9 +23,15 @@ service cloud.firestore {
 
     // PETROBEL. Reads and writes both sides, and is the only role offered the
     // chart, the printed report and the e-mailed PDF.
+    // v61: the OWNER — a second admin who alone reads the device usage records.
+    // The owner's address — must be the same as OWNER_EMAILS in index.html.
+    function isOwner() {
+      return request.auth != null
+          && request.auth.token.email == 'sherif.morshedd@gmail.com';
+    }
     function isAdmin() {
       return request.auth != null
-          && request.auth.token.email == 'sherifmorshed@gmail.com';
+          && (request.auth.token.email == 'sherifmorshed@gmail.com' || isOwner());
     }
 
     // The Ras Gara plant operators.
@@ -212,6 +218,19 @@ service cloud.firestore {
     // ── Deny everything else ──────────────────────────────────────
     // Including any collection a future feature adds: it will fail loudly here
     // rather than quietly inheriting someone else's permissions.
+    // ── Device usage (v61) ────────────────────────────────────────
+    // Each signed-in device writes ONE record for itself and its account:
+    // {deviceId}__{account}. It can only write under its own account, only the
+    // listed fields, and can never read anyone's. Only the OWNER reads them.
+    match /devices/{docId} {
+      allow read, delete: if isOwner();
+      allow create, update: if request.auth != null
+        && request.resource.data.account == request.auth.token.email.lower()
+        && docId.matches('^[0-9a-f]{16}__' + request.auth.token.email.lower() + '$')
+        && request.resource.data.keys().hasOnly(['device', 'account', 'role', 'version', 'platform', 'os',
+                                                 'browser', 'installed', 'screen', 'firstSeen', 'lastSeen']);
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
