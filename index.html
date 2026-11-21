@@ -482,6 +482,9 @@ table.tb-tbl th.tb-grp6{color:var(--accent2);border-bottom:2px solid var(--accen
 .ms-lbl .nm{font-size:14px;font-weight:800;color:var(--text);}
 .ms-h .sec{font-size:12.5px;font-weight:800;letter-spacing:.9px;color:var(--accent2);font-family:var(--font-num);}
 .ms-heater2{padding:2px 0 6px;}
+.ms-burners{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px 14px;margin-top:6px;}
+.ms-burner{display:flex;align-items:center;gap:8px;}
+.ms-burner .en{font-size:12.5px;font-weight:700;color:var(--muted);}
 .ms-heater2 .ms-hcs{justify-content:flex-end;}
 .ms-heater2.is-off .nm{color:var(--muted);}
 .ms-pick button.on.off{background:#64748b;border-color:#64748b;}
@@ -674,6 +677,7 @@ td.ps-out .ps-sel,.pd-top .ps-out .ps-sel{background:#dc2626;border-color:#dc262
 .use-tbl td i{display:block;font-style:normal;font-size:10.5px;color:var(--muted);}
 .use-tbl td.n{text-align:center;font-family:var(--font-num);font-weight:800;}
 .use-tbl td.old{color:#d97706;font-weight:800;}
+.use-tbl tr.use-tot td{background:var(--surface);border-top:2px solid var(--border);border-bottom:0;font-weight:800;}
 .fu-card{background:var(--card);border:1px solid var(--border);border-left:5px solid var(--border);border-radius:12px;padding:9px 11px;margin-bottom:8px;}
 .fu-card.out{border-left-color:#dc2626;} .fu-card.sb{border-left-color:#d97706;} .fu-card.in{border-left-color:#16a34a;}
 .fu-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
@@ -1554,7 +1558,7 @@ const MECH_EMAILS    = ['mechanical@petrobel.org'];
 // installed or in a browser, app version, first and last seen. No name, no
 // number, no location. Only the OWNER account can read them (the Usage tab);
 // the shared admin account cannot.
-const APP_VERSION = 'v61';          // ►►►► bump with sw.js CACHE_NAME on every release
+const APP_VERSION = 'v66';          // ►►►► bump with sw.js CACHE_NAME on every release
 const DEV_LS = 'sf_device_id', DEV_BEAT = 'sf_device_beat';
 const DEV_EVERY = 3 * 3600000;      // a device reports at most every 3 hours (and at once on a new version)
 function _devId(){
@@ -1694,7 +1698,17 @@ function renderUsage(){
       S.accounts.map(function(a){
         return '<tr><td><b>' + escHtml(a.account) + '</b></td><td>' + escHtml(a.role) + '</td><td class="n">' + a.devices + '</td>' +
           '<td class="n">' + a.a7 + '</td><td>' + _useAgo(a.last) + '</td></tr>';
-      }).join('') + '</tbody></table></div>' +
+      }).join('') + '</tbody>' +
+      // v66: the app's total, under the accounts
+      (function(){
+        const sumDev = S.accounts.reduce(function(t, a){ return t + a.devices; }, 0);
+        const sumA7  = S.accounts.reduce(function(t, a){ return t + a.a7; }, 0);
+        const last   = S.accounts.reduce(function(t, a){ return Math.max(t, a.last); }, 0);
+        return '<tfoot><tr class="use-tot"><td><b>Total — ' + S.accounts.length + ' account' + (S.accounts.length === 1 ? '' : 's') + '</b></td><td></td>' +
+          '<td class="n">' + sumDev + '</td><td class="n">' + sumA7 + '</td><td>' + _useAgo(last) + '</td></tr></tfoot>';
+      })() + '</table></div>' +
+      (S.entries !== S.devices ? '<div class="fu-l" style="margin:-4px 2px 10px;">' + S.devices + ' different devices — ' +
+        (S.entries - S.devices) + ' sign' + (S.entries - S.devices === 1 ? 's' : '') + ' in with more than one account.</div>' : '') +
     '<div class="rg-sec-title">Every device</div>' +
     '<div class="use-scroll"><table class="use-tbl"><thead><tr><th>Account</th><th>Device</th><th>System · browser</th><th>Installed</th><th>Version</th><th>First seen</th><th>Last seen</th></tr></thead><tbody>' +
       rows.map(function(r){
@@ -3889,6 +3903,7 @@ document.addEventListener('DOMContentLoaded', function(){
     { k:'press', en:'PRESSURES',     ar:'الضغوط' },
     { k:'scan',  en:'SCANNER 3 hr',  ar:'السكانر — 3 ساعات' },
     { k:'sigma', en:'SIGMA HEATERS', ar:'سخانات سيجما' },
+    { k:'htr',   en:'HEATER TREATER', ar:'هيتر تريتر' },
     { k:'skim',  en:'SKIMMER',       ar:'السكيمر API' },
     { k:'oilr',  en:'OIL ROOM',      ar:'غرفة الزيت' },
     { k:'hp',    en:'HIGH PRESSURE', ar:'طلمبة الضغط العالي' }
@@ -3935,11 +3950,21 @@ document.addEventListener('DOMContentLoaded', function(){
     { k:'h2S', sec:'sigma', heaterState:'Heater 2', pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
     { k:'h4S', sec:'sigma', heaterState:'Heater 4', pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
     // v37 — the oil room, after the skimmer: on or off, nothing else
-    { k:'oilR', sec:'oilr', en:'Oil Room', pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] }
+    { k:'oilR', sec:'oilr', en:'Oil Room', pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
+    // v62 — each sigma heater's two burners, A and B, on or off. `heater` ties
+    // them to their heater: a heater that is off has no burners to report.
+    { k:'h1A', sec:'sigma', en:'Burner A', heater:'Heater 1', burner:true, pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
+    { k:'h1B', sec:'sigma', en:'Burner B', heater:'Heater 1', burner:true, pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
+    { k:'h2A', sec:'sigma', en:'Burner A', heater:'Heater 2', burner:true, pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
+    { k:'h2B', sec:'sigma', en:'Burner B', heater:'Heater 2', burner:true, pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
+    { k:'h4A', sec:'sigma', en:'Burner A', heater:'Heater 4', burner:true, pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
+    { k:'h4B', sec:'sigma', en:'Burner B', heater:'Heater 4', burner:true, pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] },
+    // v62 — the Heater Treater, on or off
+    { k:'htS', sec:'htr', en:'Heater Treater', pick:[ { k:'on', en:'On' }, { k:'off', en:'Off' } ] }
   ];
-  const TB_HEATERS = [ { name:'Heater 1', s:'h1S', t:'h1T', f:'h1F' },
-                       { name:'Heater 2', s:'h2S', t:'h2T', f:'h2F' },
-                       { name:'Heater 4', s:'h4S', t:'h4T', f:'h4F' } ];
+  const TB_HEATERS = [ { name:'Heater 1', s:'h1S', t:'h1T', f:'h1F', a:'h1A', b:'h1B' },
+                       { name:'Heater 2', s:'h2S', t:'h2T', f:'h2F', a:'h2A', b:'h2B' },
+                       { name:'Heater 4', s:'h4S', t:'h4T', f:'h4F', a:'h4A', b:'h4B' } ];
   function tbMeasFI(k){ for(let i = 0; i < TB_MEAS_FIELDS.length; i++) if(TB_MEAS_FIELDS[i].k === k) return i; return -1; }
   // ►►►► OTHER SITES' STATION MEASUREMENTS (v51), same nine rounds as 10/1.
   // A simpler shape than 10/1's: sections in order, and fields that are a
@@ -4041,7 +4066,10 @@ document.addEventListener('DOMContentLoaded', function(){
              { name:'Jockey Pump 1', kind:'Fire pump', group:'FIRE FIGHTING', ord:13 },
              { name:'Jockey Pump 2', kind:'Fire pump', group:'FIRE FIGHTING', ord:14 },
              { name:'Diesel Pump 1', kind:'Fire pump', group:'FIRE FIGHTING', ord:15 },
-             { name:'Diesel Pump 2', kind:'Fire pump', group:'FIRE FIGHTING', ord:16 } ],
+             { name:'Diesel Pump 2', kind:'Fire pump', group:'FIRE FIGHTING', ord:16 },
+             // v63 — appended (index = key); `ord` shows them after the booster pumps
+             { name:'Polymer Pit Pump 1', kind:'Polymer pit', group:'POLYMER PIT PUMPS', ord:2.1 },
+             { name:'Polymer Pit Pump 2', kind:'Polymer pit', group:'POLYMER PIT PUMPS', ord:2.2 } ],
     tb6_2: [ { name:'Booster A', kind:'Booster', group:'BOOSTER PUMPS', ord:0, legacy3h:0 },
              { name:'Booster B', kind:'Booster', group:'BOOSTER PUMPS', ord:1, legacy3h:1 },
              { name:'Borets A',  kind:'Borets',  group:'BORETS PUMPS',  ord:2, legacy3h:2 },
@@ -4086,9 +4114,8 @@ document.addEventListener('DOMContentLoaded', function(){
               { name:'Transfer 4', kind:'Transfer', group:'TRANSFER PUMPS', ord:3, legacy3h:3 },
               { name:'Transfer 5', kind:'Transfer', group:'TRANSFER PUMPS', ord:4, legacy3h:4 },
               { name:'Transfer 6', kind:'Transfer', group:'TRANSFER PUMPS', ord:5, legacy3h:5 },
-              // v42 — the rest of the station. Heaters and compressors read
-              // تشغيل / إيقاف / خارج الخدمة (on / off / out of service); the
-              // fire-fighting pumps read like pumps.
+              // v42 — the rest of the station (since v63 every item reads
+              // On / Off / Out of service — في الخدمة / احتياطي / خارج الخدمة).
               { name:'Sigma Heater 1', kind:'Heater', group:'HEATERS', ord:8,  labels:'onoff' },
               { name:'Sigma Heater 2', kind:'Heater', group:'HEATERS', ord:9,  labels:'onoff' },
               { name:'Sigma Heater 4', kind:'Heater', group:'HEATERS', ord:10, labels:'onoff' },
@@ -4109,15 +4136,11 @@ document.addEventListener('DOMContentLoaded', function(){
               { name:'Oil Room Pump B',    kind:'Oil room',    group:'OIL ROOM PUMPS',    ord:7.7 } ]
   };
   const TB_PUMPD_MAX = 24;
-  // The words for a state depend on the equipment: a pump is in service or on
-  // standby; a heater or compressor is on or off. Stored the same (in / sb /
-  // out), so hours and stoppages count the same way for all of them.
-  const TB_ONOFF_STATES = [
-    { k:'in',  en:'On',             ar:'تشغيل',       cls:'in'  },
-    { k:'sb',  en:'Off',            ar:'إيقاف',       cls:'sb'  },
-    { k:'out', en:'Out of service', ar:'خارج الخدمة', cls:'out' }
-  ];
-  function tbStatesFor(def){ return (def && def.labels === 'onoff') ? TB_ONOFF_STATES : TB_PUMP_STATES; }
+  // Until v62 a heater or compressor (`labels:'onoff'`) had words of its own
+  // (On / Off, تشغيل / إيقاف) and a pump others (In service / Standby). Since
+  // v63 every item uses TB_PUMP_STATES; `labels` is kept on the definitions
+  // only as a note of what kind of item it is.
+  function tbStatesFor(def){ return TB_PUMP_STATES; }
   function tbStateOf(def, k){
     const l = tbStatesFor(def);
     for(let i = 0; i < l.length; i++) if(l[i].k === k) return l[i];
@@ -4138,7 +4161,7 @@ document.addEventListener('DOMContentLoaded', function(){
   //      Heaters are NOT here: PM covers rotating equipment — pumps and
   //      compressors — and that is the mechanical department's list (v47).
   const TB_PUMP_PM_HOURS = { Booster:4000, Borets:4000, Transfer:4000, 'High pressure':4000,
-                             Vertical:4000, Horizontal:4000, Shipping:4000, 'API skimmer':4000,
+                             Vertical:4000, Horizontal:4000, Shipping:4000, 'API skimmer':4000, 'Polymer pit':4000,
                              Compressor:4000, 'Fire pump':4000,
                              'Waste water':4000, 'Oil room':4000 };
   // What PM covers: everything on the station list except heaters (Sigma
@@ -4202,9 +4225,12 @@ document.addEventListener('DOMContentLoaded', function(){
     return TB_PM_CHECK_PUMP;
   }
   // The operator sees ONLY the Arabic; the admin report only the English.
+  // v63: ONE set of words for every item at every site — pumps, compressors,
+  // heaters alike: On / Off / Out of service, in Arabic في الخدمة / احتياطي /
+  // خارج الخدمة. Stored as in / sb / out, as before.
   const TB_PUMP_STATES = [
-    { k:'in',  en:'In service',     ar:'في الخدمة',   cls:'in'  },
-    { k:'sb',  en:'Standby',        ar:'احتياطي',     cls:'sb'  },
+    { k:'in',  en:'On',             ar:'في الخدمة',   cls:'in'  },
+    { k:'sb',  en:'Off',            ar:'احتياطي',     cls:'sb'  },
     { k:'out', en:'Out of service', ar:'خارج الخدمة', cls:'out' }
   ];
   function tbPumps(id){ return TB_PUMPS[id] || []; }
@@ -5020,13 +5046,20 @@ document.addEventListener('DOMContentLoaded', function(){
     const si = tbScanIndex(o), h = tbReadHour(b, o);
     const has = function(v){ return v != null && v !== ''; };
     L.push('*Time : ' + tbClock12(h) + '*' + (o === TB_SPAN ? ' _(next day)_' : ''),
-           WA_RULE, '', '*Scanner · Production*');
+           WA_RULE, '', '*Scanner · Production · Yesterday*');
+    // v64: yesterday's production for the same three hours beside each interval,
+    // and yesterday's total for the same period under today's.
+    const yd = TB_DAYS[tbPrevDate(_tbDate)] ? tbGetDay(tbPrevDate(_tbDate)) : null;
+    const yc = yd ? tbCalcDay(yd).per[b.id] : null;
+    const yp = function(k){ return (yc && !yc.dayOnly && yc.prod[k] != null) ? yc.prod[k] : null; };
     // every scanner round up to this one
     for(let k = 0; k <= si; k++){
       if(cell.s[k] == null) continue;
       const p = k > 0 ? c.prod[k] : null;
+      const y = k > 0 ? yp(k) : null;
       L.push('*' + tbClock12(tbReadHour(b, k * TB_STEP)) + ' :* ' + tbFmt(cell.s[k], 1) + ' m³' +
-             (p != null ? ' · ' + tbFmt(p, 1) + ' m³' : ''));
+             (p != null ? ' · ' + tbFmt(p, 1) + ' m³' : '') +
+             (k > 0 ? ' _(yesterday ' + (y != null ? tbFmt(y, 1) + ' m³' : '—') + ')_' : ''));
     }
     const p = si > 0 ? c.prod[si] : null;
     if(p != null) L.push('_Rate : ' + tbFmt(p / TB_STEP, 1) + ' m³/hr_');
@@ -5038,8 +5071,14 @@ document.addEventListener('DOMContentLoaded', function(){
     if(more.length){ L.push(''); more.forEach(function(x){ L.push(x); }); }
     let tot = 0, n = 0;
     for(let k = 1; k <= si; k++) if(c.prod[k] != null){ tot += c.prod[k]; n++; }
-    if(n) L.push('', WA_RULE,
-                 '*Total production (' + tbClock12(tbStart(b)) + ' – ' + tbClock12(h) + (o === TB_SPAN ? ' next day' : '') + ') : ' + tbFmt(tot, 1) + ' m³*');
+    const period = '(' + tbClock12(tbStart(b)) + ' – ' + tbClock12(h) + (o === TB_SPAN ? ' next day' : '') + ')';
+    if(n){
+      L.push('', WA_RULE, '*Total production ' + period + ' : ' + tbFmt(tot, 1) + ' m³*');
+      // yesterday over the SAME rounds, so the two totals compare like for like
+      let yt = 0, yn = 0;
+      for(let k = 1; k <= si; k++) if(yp(k) != null){ yt += yp(k); yn++; }
+      L.push('*Yesterday production ' + period + ' : ' + (yn ? tbFmt(yt, 1) + ' m³' : '—') + '*');
+    }
     L.push('', WA_SHIFT);
     return L.join('\n');
   }
@@ -5167,9 +5206,20 @@ document.addEventListener('DOMContentLoaded', function(){
                 (ed ? '' : ' disabled') + '><span class="u">' + c.unit + '</span></span></label>';
             });
           }
+          // v62: burners A and B, each on or off — only while the heater is not off
+          let burners = '';
+          if(st !== 'off'){
+            burners = '<div class="ms-burners">' + [ { k:h.a, en:'Burner A' }, { k:h.b, en:'Burner B' } ].map(function(c){
+              const bIdx = tbMeasKey(sl, tbMeasFI(c.k)), bv = m[c.k];
+              return '<div class="ms-burner"><span class="en">' + c.en + '</span><div class="ms-pick">' + ['on','off'].map(function(v){
+                return '<button type="button" data-mg="' + bIdx + '" data-v="' + v + '"' + (bv === v ? ' class="on' + (v === 'off' ? ' off' : '') + '"' : '') +
+                  (ed ? '' : ' disabled') + '>' + (v === 'on' ? 'On' : 'Off') + '</button>';
+              }).join('') + '</div></div>';
+            }).join('') + '</div>';
+          }
           rows += '<div class="ms-heater2' + (st === 'off' ? ' is-off' : '') + '">' +
             '<div class="ms-row"><div class="ms-lbl"><span class="nm">' + h.name + '</span></div>' + onoff + '</div>' +
-            (cells ? '<div class="ms-hcs">' + cells + '</div>' : '') + '</div>';
+            (cells ? '<div class="ms-hcs">' + cells + '</div>' : '') + burners + '</div>';
         });
         form += '<div class="ms-sec"><div class="ms-h"><span class="sec">' + escHtml(sec.en) + '</span></div>' + rows + '</div>';
         return;
@@ -5245,6 +5295,11 @@ document.addEventListener('DOMContentLoaded', function(){
           if(m[h.f] != null) parts.push(m[h.f] + ' m³/h');
           if(parts.length) lines.push('*' + h.name + ' : ' + parts.join(' · ') + '*');
           else if(m[h.s] === 'on') lines.push('*' + h.name + ' : On*');
+          // v62: the burners, on the next line
+          const bs = [];
+          if(m[h.a] === 'on' || m[h.a] === 'off') bs.push('Burner A : ' + (m[h.a] === 'on' ? 'On' : 'Off'));
+          if(m[h.b] === 'on' || m[h.b] === 'off') bs.push('Burner B : ' + (m[h.b] === 'on' ? 'On' : 'Off'));
+          if(bs.length) lines.push('*' + bs.join(' · ') + '*');
         });
       } else {
         TB_MEAS_FIELDS.forEach(function(f){
@@ -8032,7 +8087,7 @@ document.addEventListener('DOMContentLoaded', function(){
                  (mt ? '<small class="pmx">' + escHtml(mt) + '</small>' : '') + '</span>';
         }).join('');
         let counts = [
-          n.in  ? '<b class="in">'  + n.in  + ' in service</b>' : '', n.sb ? '<b class="sb">' + n.sb + ' standby</b>' : '',
+          n.in  ? '<b class="in">'  + n.in  + ' on</b>' : '', n.sb ? '<b class="sb">' + n.sb + ' off</b>' : '',
           n.out ? '<b class="out">' + n.out + ' out</b>' : '', n.none ? '<b class="none">' + n.none + ' not reported</b>' : ''
         ].filter(Boolean).join(' · ');
         const sfl = b.station ? tbStationFlow(b.id, tbGetDay(asOf).tbs[b.id]) : { n:0 };
@@ -8043,7 +8098,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 '</div><div class="pc">' + chips + '</div><div class="pn">' + counts + '</div></div>';
       });
       sm.innerHTML = '<div class="tb-psum"><div class="ptot">' +
-        '<span class="in">' + tot.in + ' in service</span><span class="sb">' + tot.sb + ' standby</span>' +
+        '<span class="in">' + tot.in + ' on</span><span class="sb">' + tot.sb + ' off</span>' +
         '<span class="out">' + tot.out + ' out of service</span>' +
         (tot.none ? '<span class="none">' + tot.none + ' not reported</span>' : '') + '</div>' + rows + '</div>';
     }
@@ -8166,11 +8221,10 @@ document.addEventListener('DOMContentLoaded', function(){
       '.mdcard .pmrow b.out{color:' + C.out + ';} .mdcard .pmrow b.sb{color:' + C.sb + ';}' +
       '@media (max-width:560px){.mdcard .kpis{gap:4px;} .mdcard .kp{padding:6px 2px;} .mdcard .kp b{font-size:18px;} .mdcard .kp span{font-size:7.5px;letter-spacing:.2px;}' +
         '.mdcard td{font-size:12px;padding:5px 4px;} .mdcard th{font-size:8.5px;padding:5px 4px;letter-spacing:.2px;} .mdcard .hd h2{font-size:18px;} .mdcard .bd{padding:10px 9px 12px;}}';
-    function lbl(onoff, k){ return onoff ? (k === 'in' ? 'On' : k === 'sb' ? 'Off' : 'Out') : (k === 'in' ? 'In service' : k === 'sb' ? 'Standby' : 'Out'); }
     const kpis = '<div class="blk"><div class="kpis">' +
       '<div class="kp"><b>' + T.n + '</b><span>Equipment</span></div>' +
-      '<div class="kp in"><b>' + T.in + '</b><span>In service</span></div>' +
-      '<div class="kp sb"><b>' + T.sb + '</b><span>Standby / off</span></div>' +
+      '<div class="kp in"><b>' + T.in + '</b><span>On</span></div>' +
+      '<div class="kp sb"><b>' + T.sb + '</b><span>Off</span></div>' +
       '<div class="kp out"><b>' + T.out + '</b><span>Out of service</span></div>' +
       '<div class="kp av"><b>' + (D.avail == null ? '—' : D.avail + '%') + '</b><span>Availability</span></div>' +
       '</div>' + (T.none ? '<div class="none">' + T.none + ' item(s) not reported yet</div>' : '') + '</div>';
@@ -8193,7 +8247,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const bats = D.bats.map(function(B){
       return '<div class="blk site"><div class="site-h"><span class="nm">' + escHtml(B.b.name) + '</span>' +
         (B.stale ? '<span class="warn">⚠ not reported today — status as of ' + tbShortDay(B.stale) + '</span>' : '') + '</div>' +
-        '<table><thead><tr><th style="width:24%">Group</th><th class="in">In service / On</th><th class="sb">Standby / Off</th><th class="out">Out of service</th></tr></thead><tbody>' +
+        '<table><thead><tr><th style="width:24%">Group</th><th class="in">On</th><th class="sb">Off</th><th class="out">Out of service</th></tr></thead><tbody>' +
         B.groups.map(function(g){
           function cell(k){ return '<td class="' + (g[k].length ? k : '') + '">' + (g[k].length ? g[k].map(escHtml).join(', ') : '—') + '</td>'; }
           const head = '<tr' + (g.out.length ? ' class="alarm"' : '') + '><td class="g">' + escHtml(tbMachGroup(g.name)) + '</td>';
@@ -8217,7 +8271,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function tbMachMsg(dateStr){
     const D = tbMachData(dateStr), T = D.tot;
     const L = ['*Sinai Field — Machinery Daily Update*', '📅 ' + tbMachDateTxt(dateStr), '',
-      'Equipment ' + T.n + ' · ✅ In service ' + T.in + ' · 🟡 Standby/off ' + T.sb + ' · 🔴 Out ' + T.out +
+      'Equipment ' + T.n + ' · ✅ On ' + T.in + ' · 🟡 Off ' + T.sb + ' · 🔴 Out of service ' + T.out +
       (D.avail == null ? '' : ' · Availability ' + D.avail + '%'), ''];
     L.push('🔴 *Out of service*');
     if(!D.outs.length) L.push('All equipment available ✅');
@@ -9287,7 +9341,7 @@ tbRemarksHTML(day.date, true) +
     tbLoadXLSX().then(function(){
       const all = tbPMAll(asOf);
       const st = [['Battery', 'Group', 'Equipment', 'Kind', 'Status', 'Running h since PM', 'Interval h',
-                   'Hours left (− = over)', 'Expected due date', 'Last PM', 'Standby h', 'Out of service h']];
+                   'Hours left (− = over)', 'Expected due date', 'Last PM', 'Off h', 'Out of service h']];
       const hi = [['Date', 'Time', 'Battery', 'Equipment', 'Checklist done', 'Remarks / parts', 'Technician', 'Work order', 'Recorded by']];
       all.forEach(function(x){
         const s = x.s;
@@ -9374,7 +9428,7 @@ tbRemarksHTML(day.date, true) +
           '<div><b>' + tbFmt(s.every, 0) + '</b><span>required interval' + (s.everySet ? '' : ' (default)') + '</span></div>' +
           '<div class="' + (s.left != null && s.left < 0 ? 'neg' : '') + '"><b>' + leftTxt + '</b><span>' + due + '</span></div>' +
         '</div>' +
-        '<div class="pm-sub">Since last PM: <b>' + tbFmt(s.sb, 0) + ' h</b> standby · <b>' + tbFmt(s.out, 0) + ' h</b> out of service · ' +
+        '<div class="pm-sub">Since last PM: <b>' + tbFmt(s.sb, 0) + ' h</b> off · <b>' + tbFmt(s.out, 0) + ' h</b> out of service · ' +
           (s.last ? 'last PM <b>' + tbShortDay(_isoDate(new Date(s.last.at))) + '</b>' : '<b>no PM on record</b> — counting from the first reading') +
           (s.est ? '<br><span class="pm-est">' + s.est + ' day' + (s.est > 1 ? 's' : '') + ' with no status report counted at the last reported status</span>' : '') + '</div>' +
         '<div class="pm-acts"><button type="button" data-pmopen="' + key + '|rec"' + (open === 'rec' ? ' class="on"' : '') + '>Record PM</button>' +
@@ -10142,6 +10196,8 @@ tbRemarksHTML(day.date, true) +
               const sl0 = Math.floor(idx / 100);
               tbApplyInput(id, 'g', tbMeasKey(sl0, tbMeasFI(hx.t)), '');
               tbApplyInput(id, 'g', tbMeasKey(sl0, tbMeasFI(hx.f)), '');
+              tbApplyInput(id, 'g', tbMeasKey(sl0, tbMeasFI(hx.a)), '');
+              tbApplyInput(id, 'g', tbMeasKey(sl0, tbMeasFI(hx.b)), '');
             }
             tbQueueSave(); tbRenderArea();
             return;

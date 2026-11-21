@@ -1,6 +1,6 @@
 # Sinai Field — start here
 
-**Attach `sinai-field-v61.zip` to the new chat and paste the block below as your
+**Attach `sinai-field-v66.zip` to the new chat and paste the block below as your
 first message.** Everything Claude needs is in the zip; nothing from any other
 conversation is required.
 
@@ -16,7 +16,7 @@ conversation is required.
 > The attached zip is the whole project. Read `README.md`, then
 > `DEVELOPER_REFERENCE.md`, then `CHANGELOG.md` before changing anything.
 >
-> Current release: **v61**, service-worker cache `sinai-field-v61`.
+> Current release: **v66**, service-worker cache `sinai-field-v66`.
 > Each release: bump `CACHE_NAME` in sw.js AND `APP_VERSION` in index.html.
 >
 > How I work: show me the change, test it before you say it is done, and tell me
@@ -73,6 +73,10 @@ tank battery total to a Ras Gara total.
 
 ## Where things stand
 
+v66: Usage — Total row under By account. v65: "Yesterday full day" line removed. v64: readings message — yesterday's same 3 hours per interval, yesterday same-period
+total and full day. v63: one set of status words for all items (On/Off/Out of service — في الخدمة/احتياطي/
+خارج الخدمة; `tbStatesFor` always TB_PUMP_STATES); 6/1 Polymer Pit Pumps 1, 2.
+v62: 10/1 measurements — burners A/B per sigma heater, Heater Treater section.
 v61: OWNER account (admin + Usage tab; `OWNER_EMAILS`, rules `isOwner()`), device
 records `devices/{id}__{account}`. v60: WhatsApp separator lines = `WA_RULE` / `WA_SHIFT` (LRM + ━), never Arabic
 tatweel. v59: `sepPr` — Sep. pressure (rows[i].e) instead of chemical on 6/1–8/2; admin

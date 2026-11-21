@@ -27,7 +27,7 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
   await a.fill('#tbFieranArea textarea.pd-why[data-tb="fieran"][data-i="3"]', 'Gas engine overhaul'); await sleep(300);
   await a.fill('#tbFieranArea textarea[data-k="r"]', 'Shipping to tanker tomorrow'); await sleep(1500);
   const msg = await a.evaluate(() => document.querySelector('#tbFieranArea .pd-wa .ms-msg').textContent);
-  check('Fieran WhatsApp: statuses and reason'+tag, /\*`Fieran Terminal`\*/.test(msg) && /Powerhouse Pump 1 : In service/i.test(msg) && /Gas Pump 707 : Out of service — Gas engine overhaul/i.test(msg), msg.slice(0, 260));
+  check('Fieran WhatsApp: statuses and reason'+tag, /\*`Fieran Terminal`\*/.test(msg) && /Powerhouse Pump 1 : On/i.test(msg) && /Gas Pump 707 : Out of service — Gas engine overhaul/i.test(msg), msg.slice(0, 260));
   const st = await a.evaluate(() => { const k = Object.keys(window.__STUB__.store).find(x => /__fieran$/.test(x)); return k ? JSON.parse(JSON.stringify(window.__STUB__.store[k])) : null; });
   check('Saved by admin to its own document (battery fieran)'+tag, st && st.battery === 'fieran' && st.pumpsDaily['0'] === 'in' && st.pumpsDaily['3'] === 'out' && st.pumpsDailyWhy['3'] === 'Gas engine overhaul' && (st.remarks === 'Shipping to tanker tomorrow'), st && JSON.stringify({ pd:st.pumpsDaily, n:st.remarks }));
   const hd = await a.evaluate(() => document.querySelector('#tbFieranArea .tb-station .hd').innerText.replace(/\s+/g,' '));

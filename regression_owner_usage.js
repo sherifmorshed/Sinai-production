@@ -18,8 +18,8 @@ const PH = { 'iPhone':'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Ap
   };
   let v = await visit('test_tb.html', PH.Android);
   const d1 = await v.p.evaluate(() => Object.keys(window.__STUB__.store).filter(k => /^devices\//.test(k)).map(k => ({ k, v:window.__STUB__.store[k] })));
-  check('An operator\'s device leaves ONE record: id__account, Android phone, browser, v61', d1.length === 1 && /^devices\/[0-9a-f]{16}__tb6-2@petrobel\.org$/.test(d1[0].k) &&
-    d1[0].v.platform === 'Phone' && d1[0].v.os === 'Android' && d1[0].v.browser === 'Chrome' && d1[0].v.installed === false && d1[0].v.version === 'v61' && d1[0].v.role === 'T.B. 6/2', JSON.stringify(d1[0]));
+  check('An operator\'s device leaves ONE record: id__account, Android phone, browser, v66', d1.length === 1 && /^devices\/[0-9a-f]{16}__tb6-2@petrobel\.org$/.test(d1[0].k) &&
+    d1[0].v.platform === 'Phone' && d1[0].v.os === 'Android' && d1[0].v.browser === 'Chrome' && d1[0].v.installed === false && d1[0].v.version === 'v66' && d1[0].v.role === 'T.B. 6/2', JSON.stringify(d1[0]));
   const rd = await v.p.evaluate(async () => { try { await firebase.firestore().collection('devices').get(); return 'allowed'; } catch(e){ return e.code; } });
   check('Rules (stub): an operator cannot read the device records', rd === 'permission-denied', rd);
   const spoof = await v.p.evaluate(async () => { const f = firebase.firestore(), o = {};
@@ -58,8 +58,13 @@ const PH = { 'iPhone':'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Ap
     rows:[...document.querySelectorAll('#useBody .use-row')].map(r => r.innerText.replace(/\s+/g,' ')).join(' | ') }));
   check('Usage: 4 devices (operator, mechanical, admin, owner), all active today', /^4 devices in total \| 4 active last 24 h \| 4 active last 7 days/.test(u.kpi), u.kpi);
   check('Usage: by account, with roles', /tb6-2@petrobel\.org T\.B\. 6\/2 1 1/.test(u.acc) && /mechanical@petrobel\.org MECHANICAL 1 1/.test(u.acc) && /owner@test\.local OWNER/.test(u.acc), u.acc.slice(0, 300));
-  check('Usage: device / system / version split', /Phone 3/.test(u.rows) && /Desktop 1/.test(u.rows) && /Android 2/.test(u.rows) && /iOS 1/.test(u.rows) && /v61 4/.test(u.rows), u.rows);
+  check('Usage: device / system / version split', /Phone 3/.test(u.rows) && /Desktop 1/.test(u.rows) && /Android 2/.test(u.rows) && /iOS 1/.test(u.rows) && /v66 4/.test(u.rows), u.rows);
   check('Usage: every device listed', u.devs === 4, String(u.devs));
+  const tot = await v.p.evaluate(() => { const r = document.querySelector('#useBody .use-tbl tfoot tr'); return r ? [...r.querySelectorAll('td')].map(t => t.textContent).join('|') : null; });
+  check('Usage: a Total row under the accounts (4 accounts, 4 devices, 4 active)', tot && /^Total — 4 accounts\|\|4\|4\|/.test(tot), String(tot));
+  const t2 = await v.p.evaluate(() => { const rows = [{ device:'aaaa', account:'x', lastSeen:Date.now() }, { device:'aaaa', account:'y', lastSeen:Date.now() }, { device:'bbbb', account:'x', lastSeen:Date.now() }];
+    const S = window.__USAGE__.stats(rows); return { dev:S.devices, entries:S.entries, sum:S.accounts.reduce((t, a) => t + a.devices, 0) }; });
+  check('Usage: a device on two accounts counts once in "different devices"', t2.dev === 2 && t2.entries === 3 && t2.sum === 3, JSON.stringify(t2));
   // an old version shows as such
   const old = await v.p.evaluate(() => { const S = window.__USAGE__.stats([{ device:'a', account:'x', version:'v61', lastSeen:Date.now() }, { device:'b', account:'y', version:'v60', lastSeen:Date.now() - 86400000 }, { device:'c', account:'z', version:'v58', lastSeen:Date.now() - 40 * 86400000 }]);
     return { old:S.old, latest:S.latest, d30:S.d30, dev:S.devices }; });

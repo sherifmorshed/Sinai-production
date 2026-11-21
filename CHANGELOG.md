@@ -1,5 +1,63 @@
 # Sinai Field — Changelog
 
+## v66 — Usage: total under "By account"
+
+Service-worker cache `sinai-field-v66`, `APP_VERSION` v66. Only `index.html`
+and `sw.js` change. The owner's Usage tab now ends the By account table with a
+**Total** row: number of accounts, devices (summed over accounts), active in
+7 days, last seen. When a device is used with more than one account, a note
+under it gives the number of different devices.
+
+## v65 — Readings message: "Yesterday full day" removed
+
+Service-worker cache `sinai-field-v65`, `APP_VERSION` v65. Only `index.html`
+and `sw.js` change. The readings message keeps yesterday per interval and
+yesterday's production for the same period; the full-day line is gone.
+
+## v64 — Readings message compares with yesterday
+
+Service-worker cache `sinai-field-v64`, `APP_VERSION` v64. Only `index.html`
+and `sw.js` change; **no rules change**.
+
+Every tank battery's readings WhatsApp message:
+- each interval line now carries yesterday's production for the same three
+  hours: `*08:00 AM :* 87,808 m³ · 20 m³ _(yesterday 33 m³)_` ("—" when
+  yesterday has no figure for it);
+- under the total: `*Yesterday production (05:00 AM – 02:00 PM) : … m³*` —
+  yesterday over the SAME rounds, so the two totals compare like for like —
+  and `_Yesterday full day : … m³_` (left out at the closing round, where the
+  period already is the full day).
+
+## v63 — One set of status words; Polymer pit pumps at T.B. 6/1
+
+Service-worker cache `sinai-field-v63`, `APP_VERSION` v63. Only `index.html`
+and `sw.js` change; **no rules change**.
+
+- **Same words for every item at every site** (pumps, compressors, heaters;
+  tank batteries, T.B. 2020, Water Disposal, Fieran): **On / Off / Out of
+  service**, in Arabic **في الخدمة / احتياطي / خارج الخدمة**. Before, pumps read
+  In service / Standby and heaters / compressors تشغيل / إيقاف. Stored values
+  are unchanged (in / sb / out), so history reads the same. WhatsApp messages,
+  the Pumps page, the Machinery update and the PM export use the new words.
+- **T.B. 6/1 — POLYMER PIT PUMPS**: Polymer Pit Pump 1 and 2, right after the
+  booster pumps, with the same three states and reasons. In Pumps, Machinery
+  update, Follow-up, the monthly export and the mechanical PM page.
+
+## v62 — T.B. 10/1: heater burners and Heater Treater
+
+Service-worker cache `sinai-field-v62`, `APP_VERSION` v62. Only `index.html`
+and `sw.js` change; **no rules change**.
+
+T.B. 10/1 → مقاسات المحطة:
+- **Sigma heaters 1, 2, 4**: each now has **Burner A** and **Burner B**, On / Off,
+  shown under the heater while it is not Off. Switching a heater Off clears
+  its temperature, flow and burners. In the message:
+  `*Burner A : On · Burner B : Off*` under the heater's line. Burners count
+  towards a complete round while their heater is on.
+- **Heater Treater**: a new section after SIGMA HEATERS, On / Off
+  (`*Heater Treater : On*`).
+Fields `h1A h1B h2A h2B h4A h4B htS`, added at the end of the field list.
+
 ## v61 — Owner account and device usage
 
 Service-worker cache `sinai-field-v61`. `index.html`, `sw.js` **and

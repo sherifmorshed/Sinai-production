@@ -20,7 +20,17 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
       /^\*Tank Battery \d+\/0\d\*\n\*Readings — القراءات\*\n\n\*Date : 19\/08\/2026\*\n\*Time : \d\d:00 (AM|PM)\*/.test(m) && !/[\u{1F300}-\u{1FAFF}]/u.test(m), m.slice(0, 120));
     const lines = m.split('\n').filter(x => /^\*\d\d:00 (AM|PM) :\* /.test(x));
     check('Every scanner reading of the day up to the latest, each with its production'+tag,
-      lines.length === scans && lines.slice(1).every(x => / m³ · -?[\d,.]+ m³$/.test(x)), lines.length + ' of ' + scans + ' | ' + lines.slice(0, 3).join(' / '));
+      lines.length === scans && lines.slice(1).every(x => / m³ · -?[\d,.]+ m³ _\(yesterday (-?[\d,.]+ m³|—)\)_$/.test(x)), lines.length + ' of ' + scans + ' | ' + lines.slice(0, 3).join(' / '));
+    const yv = await p.evaluate(id => { const T = window.__TB__; const c = T.calcDay(T.getDay('2026-08-18')).per[id], t = T.calcDay(T.getDay('2026-08-19')).per[id];
+      const d = T.getDay('2026-08-19').tbs[id]; let last = -1; d.s.forEach((v, i) => { if(v != null) last = i; });
+      let ys = 0; for(let k = 1; k <= last; k++) if(c.prod[k] != null) ys += c.prod[k];
+      const f = v => v.toLocaleString('en-US', { maximumFractionDigits:1 });
+      return { y2:c.prod[2] == null ? null : f(c.prod[2]), ys:f(ys), full:c.total == null ? null : f(c.total), last }; }, id);
+    const line2 = lines.find(x => x.startsWith('*' + lines[2].slice(1, 12)));
+    check('Each interval shows yesterday\'s same three hours'+tag, yv.y2 != null && lines[2].includes('_(yesterday ' + yv.y2 + ' m³)_'), lines[2] + ' vs ' + yv.y2);
+    check('Yesterday production for the same period after the total, no full-day line'+tag,
+      new RegExp('\\*Total production [^\\n]+\\*\\n\\*Yesterday production \\([^)]+\\) : ' + yv.ys.replace(/[.,]/g, m => '\\' + m) + ' m³\\*').test(m) &&
+      !/Yesterday full day/.test(m), m.split('\n').filter(x => /Total|Yesterday/.test(x)).join(' | ') + ' || ' + JSON.stringify(yv));
     check('Total production up to the latest reading'+tag, /\*Total production \(\d\d:00 (AM|PM) – \d\d:00 (AM|PM)( next day)?\) : -?[\d,.]+ m³\*/.test(m), m.split('\n').filter(x => /Total/.test(x)).join(''));
     // a new reading moves the message on: clear the last scanner, message falls back, put it back
     const offs = await p.evaluate(id => { const d = window.__TB__.getDay('2026-08-19').tbs[id]; let k = -1; d.s.forEach((v, i) => { if(v != null) k = i; }); return { k, v:d.s[k] }; }, id);

@@ -44,7 +44,7 @@ const U = f => 'http://localhost:8801/' + f;
     check('6/2 station: boosters, Borets, compressors, fire fighting', s.groups === 'BOOSTER PUMPS|BORETS PUMPS|COMPRESSORS|FIRE FIGHTING', s.groups);
     check('6/2 compressors: Vertical, Horizontal, Diesel; fire: 2 jockey, 2 diesel',
           /Vertical Compressor\|Horizontal Compressor\|Diesel Compressor\|Jockey Pump 1\|Jockey Pump 2\|Diesel Pump 1\|Diesel Pump 2$/.test(s.names), s.names);
-    check('Compressors read تشغيل / إيقاف / خارج الخدمة', s.comp === '—/تشغيل/إيقاف/خارج الخدمة', s.comp);
+    check('Compressors read the same words as pumps: في الخدمة / احتياطي / خارج الخدمة', s.comp === '—/في الخدمة/احتياطي/خارج الخدمة', s.comp);
     check('First daily day: yesterday from the last three-hour reading', /أمس/.test(s.hint || ''), s.hint);
     check('WhatsApp box: the Arabic instruction and the button', /انسخ الرسالة وابعتها على جروب الشغل/.test(s.ar || '') && s.btn === 'نسخ الرسالة للجروب', s.ar + ' / ' + s.btn);
     await p.click('.pd-copy'); await sleep(300);
@@ -57,7 +57,7 @@ const U = f => 'http://localhost:8801/' + f;
           JSON.stringify(d.pumpsDaily));
     const m = await p.evaluate(() => document.querySelector('.pd-wa .ms-msg').textContent);
     check('Message headed Tank Battery 6/02, groups and reasons', /^\*`Tank Battery 6\/02`\*/.test(m) && /`COMPRESSORS`[\s\S]*\*Horizontal Compressor : Out of service — Starter fault\*/.test(m) &&
-          /\*Borets B : Out of service since 14\/08/.test(m) && /\*Jockey Pump 1 : Standby\*/.test(m), m.split('\n').slice(0,4).join(' / '));
+          /\*Borets B : Out of service since 14\/08/.test(m) && /\*Jockey Pump 1 : Off\*/.test(m), m.split('\n').slice(0,4).join(' / '));
     check('Tab badge counts what is out', await p.evaluate(() => (document.querySelector('.ptabs .pdot')||{}).textContent) === '2');
     check('No page errors (6/2)', !p._e.length, p._e.join('|'));
     await p.context().close(); }
@@ -99,7 +99,7 @@ const U = f => 'http://localhost:8801/' + f;
       outs:[...document.querySelectorAll('#tbMachCard tr.alarm')].map(t => t.innerText.replace(/\s+/g,' ')).join(' / '),
       bats:[...document.querySelectorAll('#tbMachCard .site-h .nm')].map(h => h.textContent).join('|'),
       msg:window.__MACH__.msg('2026-08-21') }));
-    check('Machinery update: card with KPIs (100 items, availability)', m.vis === '' && m.card && /^100\|/.test(m.kp) && /%$/.test(m.kp), m.kp);
+    check('Machinery update: card with KPIs (102 items, availability)', m.vis === '' && m.card && /^102\|/.test(m.kp) && /%$/.test(m.kp), m.kp);
     check('Machinery update: out of service with since, days and reason', /Borets B 14 Aug 8 Motor tripped/.test(m.outs) && /Transfer 6/.test(m.outs), m.outs.slice(0, 160));
     check('Machinery update: every battery in its own block', ['T.B. 6/1','T.B. 6/2','T.B. 8/1','T.B. 8/2','T.B. 10/1','T.B. 2020','Water Disposal Plant','Fieran Terminal'].every(n => m.bats.includes(n)), m.bats);
     check('Machinery update: WhatsApp text', /\*Sinai Field — Machinery Daily Update\*/.test(m.msg) && /🔴 \*Out of service\*/.test(m.msg) && /T\.B\. 6\/2 — Borets B: since 14 Aug \(8 d\)/.test(m.msg) && /Booster: ✅/.test(m.msg) && /🛠 \*PM\*/.test(m.msg), m.msg.split('\n').slice(0,6).join(' ⏎ '));
